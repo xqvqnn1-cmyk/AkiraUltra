@@ -12,6 +12,7 @@ import Navbar from '../components/layout/Navbar';
 import { Avatar } from '../components/community/UserProfilePopup.jsx';
 import ChatMessage from '../components/community/ChatMessage.jsx';
 import NotificationPanel from '../components/community/NotificationPanel.jsx';
+import SelfProfilePopup from '../components/community/SelfProfilePopup.jsx';
 import { format } from 'date-fns';
 
 const CHANNELS = [
@@ -59,6 +60,7 @@ export default function CommunityPage() {
   const [showMemberList, setShowMemberList] = useState(true);
   const [profiles, setProfiles] = useState([]);
   const [recentDMs, setRecentDMs] = useState([]); // list of { email, name }
+  const [showSelfPopup, setShowSelfPopup] = useState(false);
 
   const endRef = useRef(null);
   const dmEndRef = useRef(null);
@@ -224,6 +226,14 @@ export default function CommunityPage() {
   const handleSend = (e) => { e.preventDefault(); if (!input.trim() || !user || sendMutation.isPending) return; sendMutation.mutate(input.trim()); };
   const handleSendDM = (e) => { e.preventDefault(); if (!dmInput.trim() || !user || sendDMMutation.isPending) return; sendDMMutation.mutate(dmInput.trim()); };
 
+  const handleStatusChange = async (status) => {
+    const ex = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
+    if (ex[0]) {
+      await base44.entities.UserProfile.update(ex[0].id, { status });
+      setProfiles(prev => prev.map(p => p.user_email === user.email ? { ...p, status } : p));
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#0b0b10] text-white overflow-hidden">
       <Navbar />
@@ -301,15 +311,29 @@ export default function CommunityPage() {
           </div>
 
           {/* User bar */}
-          <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0">
-            <div className="relative flex-shrink-0">
-              <Avatar name={displayName} email={user?.email} avatarUrl={myProfile?.avatar_url} size="sm" />
-              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0d0d15] ${STATUS_COLORS[myProfile?.status || 'offline']}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-white truncate leading-tight">{displayName}</p>
-              <p className="text-[10px] text-gray-500 truncate capitalize">{myProfile?.status || 'offline'}</p>
-            </div>
+          <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0 relative">
+            <AnimatePresence>
+              {showSelfPopup && (
+                <SelfProfilePopup
+                  profile={myProfile}
+                  onClose={() => setShowSelfPopup(false)}
+                  onStatusChange={handleStatusChange}
+                />
+              )}
+            </AnimatePresence>
+            <button
+              onClick={() => setShowSelfPopup(v => !v)}
+              className="flex items-center gap-2 flex-1 min-w-0 hover:bg-white/5 rounded-lg px-1 py-1 transition-colors cursor-pointer"
+            >
+              <div className="relative flex-shrink-0">
+                <Avatar name={displayName} email={user?.email} avatarUrl={myProfile?.avatar_url} size="sm" />
+                <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0d0d15] ${STATUS_COLORS[myProfile?.status || 'offline']}`} />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-xs font-bold text-white truncate leading-tight">{displayName}</p>
+                <p className="text-[10px] text-gray-500 truncate capitalize">{myProfile?.status || 'offline'}</p>
+              </div>
+            </button>
             <div className="flex items-center gap-0.5">
               <div className="relative" ref={notifsRef}>
                 <button onClick={() => setShowNotifs(v => !v)} className="p-1.5 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors relative">
