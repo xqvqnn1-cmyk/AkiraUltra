@@ -196,6 +196,12 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   };
 
   const addReaction = async (msgId, emoji) => {
+    const existingReaction = reactions.find(r => r.message_id === msgId && r.user_email === user?.email && r.emoji === emoji);
+    if (existingReaction) return; // User already reacted with this emoji
+    
+    const reactionCount = reactions.filter(r => r.message_id === msgId && r.emoji === emoji).length;
+    if (reactionCount >= 4) return; // Limit 4 reactions per emoji
+    
     await base44.entities.MessageReaction.create({
       message_id: msgId,
       message_type: 'dm',
@@ -373,12 +379,8 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         </div>
                       )}
                       <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
-                      {msg.image_url && (
-                        <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />
-                      )}
-                      {msg.gif_url && (
-                        <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />
-                      )}
+                      {msg.image_url && <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
+                      {msg.gif_url && <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
                       {/* Reactions */}
                       {msgReactions.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">

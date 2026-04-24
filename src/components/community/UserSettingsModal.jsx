@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import {
-  X, User, Palette, MessageCircle, Camera, ImagePlus, Mail, Check, Loader2
+  X, User, Palette, MessageCircle, Camera, ImagePlus, Mail, Check, Loader2, Edit2
 } from 'lucide-react';
 import { Avatar } from './UserProfilePopup.jsx';
 import AvatarEditModal from './AvatarEditModal.jsx';
@@ -32,6 +32,7 @@ const BANNER_GRADIENT_MAP = {
 
 const TABS = [
   { id: 'profile', label: 'My Account', icon: User },
+  { id: 'edit', label: 'Edit Profile', icon: Edit2 },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'email', label: 'Email & Security', icon: Mail },
   { id: 'privacy', label: 'Privacy & Blocking', icon: MessageCircle },
@@ -238,6 +239,36 @@ export default function UserSettingsModal({ onClose }) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 scrollbar-hide">
+              {/* ── EDIT PROFILE TAB ── */}
+              {activeTab === 'edit' && (
+                <>
+                  {/* Display Name */}
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-widest block mb-1.5">Display Name</label>
+                    <input
+                      value={displayName}
+                      onChange={e => { setDisplayName(e.target.value); setDisplayNameError(''); }}
+                      className={`w-full bg-[#1a1d23] border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none transition-colors ${displayNameError ? 'border-red-500/50 focus:border-red-500/50' : 'border-white/10 focus:border-violet-500/50'}`}
+                    />
+                    {displayNameError && <p className="text-xs text-red-400 mt-1">{displayNameError}</p>}
+                  </div>
+
+                  {/* Bio */}
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-widest block mb-1.5">About Me</label>
+                    <textarea
+                      value={bio}
+                      onChange={e => setBio(e.target.value)}
+                      maxLength={200}
+                      rows={3}
+                      placeholder="Tell people about yourself..."
+                      className="w-full bg-[#1a1d23] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none transition-colors"
+                    />
+                    <p className="text-xs text-gray-600 mt-1">{bio.length}/200</p>
+                  </div>
+                </>
+              )}
+
               {/* ── PROFILE TAB ── */}
               {activeTab === 'profile' && (
                 <>

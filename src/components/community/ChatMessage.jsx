@@ -33,6 +33,12 @@ export default function ChatMessage({ msg, currentUser, onMention, onReply, prof
   const avatarUrl = senderProfile?.avatar_url;
 
   const addReaction = async (emoji) => {
+    const existingReaction = reactions.find(r => r.message_id === msg.id && r.user_email === currentUser?.email && r.emoji === emoji);
+    if (existingReaction) return; // User already reacted with this emoji
+    
+    const reactionCount = reactions.filter(r => r.message_id === msg.id && r.emoji === emoji).length;
+    if (reactionCount >= 4) return; // Limit 4 reactions per emoji
+    
     await base44.entities.MessageReaction.create({
       message_id: msg.id,
       message_type: 'chat',
@@ -83,12 +89,8 @@ export default function ChatMessage({ msg, currentUser, onMention, onReply, prof
         <p className="text-gray-300 text-sm leading-relaxed break-words">
           {parseContent(msg.content, currentUser?.full_name || currentUser?.email?.split('@')[0])}
         </p>
-        {msg.image_url && (
-          <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />
-        )}
-        {msg.gif_url && (
-          <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />
-        )}
+        {msg.image_url && <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
+        {msg.gif_url && <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
       </div>
 
       {/* Hover actions */}
