@@ -54,6 +54,16 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp of last activity"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin",
+        "owner"
+      ],
+      "default": "user",
+      "description": "User role in the community"
     }
   },
   "required": [

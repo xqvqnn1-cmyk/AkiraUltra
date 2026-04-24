@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import {
-  X, User, Palette, MessageCircle, Camera, ImagePlus, Mail, Check, Loader2, Edit2
+  X, User, Palette, MessageCircle, Camera, ImagePlus, Mail, Check, Loader2, Edit2, Shield
 } from 'lucide-react';
 import { Avatar } from './UserProfilePopup.jsx';
 import AvatarEditModal from './AvatarEditModal.jsx';
+import AdminPanel from './AdminPanel.jsx';
 
 const BANNER_COLORS = [
   'from-violet-600 to-purple-800',
@@ -41,6 +43,9 @@ const TABS = [
 export default function UserSettingsModal({ onClose }) {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [userRole, setUserRole] = useState('user');
+  const [isOwner, setIsOwner] = useState(false);
   const [profile, setProfile] = useState(null);
   const [bio, setBio] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -78,6 +83,8 @@ export default function UserSettingsModal({ onClose }) {
         setUsername(profiles[0].user_name || '');
         setBannerColor(profiles[0].banner_color || BANNER_COLORS[0]);
         setDmEnabled(profiles[0].dm_enabled !== false);
+        setUserRole(profiles[0].role || 'user');
+        setIsOwner(user.email === 'giankarlohernandez40@gmail.com' || profiles[0].role === 'owner');
       }
       setBlockedUsers(blocked);
     });
@@ -127,13 +134,17 @@ export default function UserSettingsModal({ onClose }) {
     }
     setSaving(true);
     try {
-      await Promise.all([
-        base44.entities.UserProfile.update(profile.id, {
-          bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: username || displayName,
-        }),
-        base44.auth.updateMe({ full_name: displayName }),
-      ]);
-      setProfile(prev => ({ ...prev, bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: username || displayName }));
+      const updateData = {
+        user_name: username || displayName,
+        bio,
+        banner_color: bannerColor,
+        dm_enabled: dmEnabled,
+      };
+      
+      await base44.entities.UserProfile.update(profile.id, updateData);
+      await base44.auth.updateMe({ full_name: displayName });
+      
+      setProfile(prev => ({ ...prev, ...updateData }));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -253,6 +264,21 @@ export default function UserSettingsModal({ onClose }) {
             <div className="mt-2 px-3">
               <div className="h-px bg-white/5" />
             </div>
+
+            {(isOwner || userRole === 'admin') && (
+              <>
+                <div className="mt-2 px-3">
+                  <div className="h-px bg-white/5" />
+                </div>
+                <button
+                  onClick={() => setShowAdminPanel(true)}
+                  className="flex items-center gap-2.5 px-5 py-2 mt-2 text-sm font-medium text-violet-400 hover:bg-violet-500/10 transition-colors"
+                >
+                  <Shield className="w-4 h-4" />
+                  {isOwner ? 'Owner Panel' : 'Admin Panel'}
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => { logout(); onClose(); }}
@@ -577,6 +603,13 @@ export default function UserSettingsModal({ onClose }) {
             onApply={handleAvatarApply}
             onClose={() => setShowAvatarModal(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Admin Panel Modal */}
+      <AnimatePresence>
+        {showAdminPanel && (
+          <AdminPanel isOwner={isOwner} onClose={() => setShowAdminPanel(false)} />
         )}
       </AnimatePresence>
     </>

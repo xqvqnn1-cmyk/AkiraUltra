@@ -61,6 +61,12 @@ const BANNER_GRADIENT_MAP = {
   'from-fuchsia-500 to-pink-700': 'linear-gradient(to right, #d946ef, #be185d)',
 };
 
+const ROLE_BADGE = {
+  owner: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '👑 Owner' },
+  admin: { bg: 'bg-violet-500/20', text: 'text-violet-400', label: '⚙️ Admin' },
+  user: null,
+};
+
 function getBannerStyle(profile) {
   if (profile?.banner_url) return { backgroundImage: `url(${profile.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' };
   const color = getAvatarColor(profile?.user_email);
@@ -207,7 +213,15 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
           </div>
         </div>
 
-        <h3 className="font-bold text-white text-base">{displayName}</h3>
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="font-bold text-white text-base">{displayName}</h3>
+          {profile?.role === 'owner' && (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">👑 Owner</span>
+          )}
+          {profile?.role === 'admin' && (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400">⚙️ Admin</span>
+          )}
+        </div>
 
         {/* Status row */}
         <div className="flex items-center gap-2 mt-1 mb-2">
