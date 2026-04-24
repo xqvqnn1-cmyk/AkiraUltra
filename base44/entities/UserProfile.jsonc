@@ -44,6 +44,16 @@
     "dm_enabled": {
       "type": "boolean",
       "default": true
+    },
+    "is_typing": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether user is currently typing a message"
+    },
+    "last_active": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp of last activity"
     }
   },
   "required": [

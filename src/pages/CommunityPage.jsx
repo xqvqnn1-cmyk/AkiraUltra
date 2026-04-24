@@ -12,6 +12,7 @@ import Navbar from '../components/layout/Navbar';
 import { Avatar } from '../components/community/UserProfilePopup.jsx';
 import ChatMessage from '../components/community/ChatMessage.jsx';
 import NotificationPanel from '../components/community/NotificationPanel.jsx';
+import LastActiveTime from '../components/community/LastActiveTime.jsx';
 import SelfProfilePopup from '../components/community/SelfProfilePopup.jsx';
 import UserSettingsModal from '../components/community/UserSettingsModal.jsx';
 import UserProfileModal from '../components/community/UserProfileModal.jsx';
@@ -69,6 +70,8 @@ export default function CommunityPage() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [imageUrl, setImageUrl] = useState(null);
   const [gifUrl, setGifUrl] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   const endRef = useRef(null);
   const inputRef = useRef(null);
@@ -78,7 +81,7 @@ export default function CommunityPage() {
   /* ── Profiles ── */
   useEffect(() => {
     base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles);
-    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles), 30000);
+    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles), 5000);
     return () => clearInterval(iv);
   }, []);
 
@@ -272,6 +275,29 @@ export default function CommunityPage() {
     }
   };
 
+  const handleInputChange = async (e) => {
+    setInput(e.target.value);
+    
+    // Update typing status
+    if (!isTyping) {
+      setIsTyping(true);
+      const myProf = profiles.find(p => p.user_email === user?.email);
+      if (myProf) {
+        base44.entities.UserProfile.update(myProf.id, { is_typing: true, last_active: new Date().toISOString() });
+      }
+    }
+
+    // Clear typing after 3 seconds of inactivity
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(async () => {
+      setIsTyping(false);
+      const myProf = profiles.find(p => p.user_email === user?.email);
+      if (myProf) {
+        base44.entities.UserProfile.update(myProf.id, { is_typing: false });
+      }
+    }, 3000);
+  };
+
   const handleStatusChange = async (status) => {
     const ex = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
     if (ex[0]) {
@@ -438,6 +464,18 @@ export default function CommunityPage() {
                       }}
                     />
                   ))}
+                  {/* Typing indicator */}
+                  {profiles.filter(p => p.is_typing && p.user_email !== user?.email).map(typingUser => (
+                    <div key={`typing-${typingUser.user_email}`} className="flex items-center gap-2 px-2 py-1 text-xs text-gray-500">
+                      <span className="font-medium">{typingUser.user_name || typingUser.user_email.split('@')[0]}</span>
+                      <span className="flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </span>
+                      <span>typing...</span>
+                    </div>
+                  ))}
                   <div ref={endRef} />
                 </div>
                 {/* Image preview */}
@@ -470,7 +508,7 @@ export default function CommunityPage() {
                   {user ? (
                     <form onSubmit={handleSend}>
                       <div className="flex items-center gap-2 bg-[#1e1e2e] rounded-xl px-4 py-3 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
-                        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
+                        <input ref={inputRef} value={input} onChange={handleInputChange}
                           placeholder={`Message #${activeChannel}`}
                           className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
                           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }} />
@@ -610,6 +648,7 @@ export default function CommunityPage() {
 function MemberItem({ profile, currentUser, onDM }) {
   const name = profile.user_name || profile.user_email?.split('@')[0] || 'User';
   const isSelf = currentUser?.email === profile.user_email;
+  const isTyping = profile.is_typing;
   return (
     <div className="flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-white/5 cursor-pointer group transition-colors" onClick={!isSelf ? onDM : undefined}>
       <div className="relative flex-shrink-0">
@@ -617,9 +656,11 @@ function MemberItem({ profile, currentUser, onDM }) {
         <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111118] ${STATUS_COLORS[profile.status || 'offline']}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-gray-300 group-hover:text-white truncate transition-colors">{name}</p>
-        {profile.status === 'watching' && profile.currently_watching && (
+        <p className="text-xs font-semibold text-gray-300 group-hover:text-white truncate transition-colors">{isTyping ? <span className="text-violet-400">typing...</span> : name}</p>
+        {profile.status === 'watching' && profile.currently_watching ? (
           <p className="text-[10px] text-violet-400 truncate flex items-center gap-1"><Tv className="w-2.5 h-2.5" />{profile.currently_watching}</p>
+        ) : (
+          <LastActiveTime lastActive={profile.last_active} status={profile.status} />
         )}
       </div>
     </div>
