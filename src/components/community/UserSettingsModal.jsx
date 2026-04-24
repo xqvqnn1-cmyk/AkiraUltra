@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import {
-  X, User, Mail, Palette, MessageCircle, Save, Camera,
-  Shield, Edit2, Check, Sparkles
+  X, User, Palette, MessageCircle, Camera, ImagePlus
 } from 'lucide-react';
 import { Avatar } from './UserProfilePopup.jsx';
 import AvatarEditModal from './AvatarEditModal.jsx';
@@ -278,13 +277,16 @@ export default function UserSettingsModal({ onClose }) {
                     </div>
                   </div>
                   <div className="bg-[#1a1d23] rounded-xl p-4 flex items-center gap-3">
-                    <Sparkles className="w-5 h-5 text-violet-400 flex-shrink-0" />
+                    <ImagePlus className="w-5 h-5 text-violet-400 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm text-white font-semibold">Animate your avatar</p>
-                      <p className="text-xs text-gray-500">Get Premium to unlock animated avatars</p>
+                      <p className="text-sm text-white font-semibold">Upload Banner Picture</p>
+                      <p className="text-xs text-gray-500">Set a custom profile banner image</p>
                     </div>
-                    <button className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 transition-all flex-shrink-0">
-                      Get Premium
+                    <button
+                      onClick={() => bannerInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#2a2d35] hover:bg-white/10 border border-white/10 transition-all flex-shrink-0"
+                    >
+                      Upload
                     </button>
                   </div>
                 </>
