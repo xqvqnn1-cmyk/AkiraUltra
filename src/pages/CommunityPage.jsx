@@ -333,7 +333,7 @@ export default function CommunityPage() {
                 profile={myProfile}
                 onClose={() => setShowSelfPopup(false)}
                 onStatusChange={handleStatusChange}
-                onOpenSettings={(type) => { if (type === 'profile') { setShowProfileModal(true); } else { setShowSettings(true); } }}
+                onOpenSettings={() => { setShowSettings(true); }}
               />
             )}
             </AnimatePresence>

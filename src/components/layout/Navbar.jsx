@@ -110,7 +110,7 @@ export default function Navbar() {
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowProfile(true)}
+                onClick={() => setShowSettings(true)}
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
               >
                 {avatarUrl ? (
