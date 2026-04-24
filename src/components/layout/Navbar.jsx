@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import UserSettingsModal from '../community/UserSettingsModal.jsx';
+import UserProfileModal from '../community/UserProfileModal.jsx';
 
 const navLinks = [
   { label: 'Home', path: '/' },
@@ -20,6 +21,7 @@ export default function Navbar() {
   const [query, setQuery] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
@@ -108,7 +110,7 @@ export default function Navbar() {
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowSettings(true)}
+                onClick={() => setShowProfile(true)}
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
               >
                 {avatarUrl ? (
@@ -138,6 +140,16 @@ export default function Navbar() {
           </button>
         </div>
       </div>
+
+      {/* Profile Modal */}
+      <AnimatePresence>
+        {showProfile && (
+          <UserProfileModal
+            onClose={() => setShowProfile(false)}
+            onOpenSettings={() => { setShowProfile(false); setShowSettings(true); }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Settings Modal */}
       <AnimatePresence>

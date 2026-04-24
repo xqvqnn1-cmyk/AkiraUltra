@@ -197,9 +197,9 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
           </div>
           <div className="flex items-center gap-1 mt-9">
             {isSelf && (
-              <Link to="/settings" onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
+              <button onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
                 <Settings className="w-3.5 h-3.5" />
-              </Link>
+              </button>
             )}
             <button onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
               <X className="w-3.5 h-3.5" />
@@ -291,9 +291,9 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
         )}
 
         {isSelf && (
-          <Link to="/settings" onClick={onClose} className="block mt-3 text-center text-xs text-violet-400 hover:text-violet-300 transition-colors">
-            Open Settings →
-          </Link>
+          <button onClick={onClose} className="block w-full mt-3 text-center text-xs text-violet-400 hover:text-violet-300 transition-colors">
+            Close ✕
+          </button>
         )}
       </div>
     </motion.div>

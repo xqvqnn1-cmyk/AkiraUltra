@@ -14,7 +14,6 @@ import WatchPage from './pages/WatchPage';
 import WatchlistPage from './pages/WatchlistPage';
 import SchedulePage from './pages/SchedulePage';
 import CommunityPage from './pages/CommunityPage.jsx';
-import UserSettingsPage from './pages/UserSettingsPage.jsx';
 
 
 const AuthenticatedApp = () => {
@@ -52,7 +51,6 @@ const AuthenticatedApp = () => {
       <Route path="/schedule" element={<SchedulePage />} />
       <Route path="/community" element={<CommunityPage />} />
       <Route path="/signin" element={<SignInPage />} />
-      <Route path="/settings" element={<UserSettingsPage />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

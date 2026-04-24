@@ -104,7 +104,7 @@ export default function SelfProfilePopup({ profile, onClose, onStatusChange, onO
       {/* Actions */}
       <div className="px-2 py-2">
         <button
-          onClick={() => { onOpenSettings?.(); onClose(); }}
+          onClick={() => { onOpenSettings?.('profile'); onClose(); }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors"
         >
           <Pencil className="w-4 h-4" />

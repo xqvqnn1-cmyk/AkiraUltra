@@ -14,6 +14,7 @@ import ChatMessage from '../components/community/ChatMessage.jsx';
 import NotificationPanel from '../components/community/NotificationPanel.jsx';
 import SelfProfilePopup from '../components/community/SelfProfilePopup.jsx';
 import UserSettingsModal from '../components/community/UserSettingsModal.jsx';
+import UserProfileModal from '../components/community/UserProfileModal.jsx';
 import { format } from 'date-fns';
 
 const CHANNELS = [
@@ -63,6 +64,7 @@ export default function CommunityPage() {
   const [recentDMs, setRecentDMs] = useState([]); // list of { email, name }
   const [showSelfPopup, setShowSelfPopup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const endRef = useRef(null);
   const dmEndRef = useRef(null);
@@ -320,7 +322,7 @@ export default function CommunityPage() {
                 profile={myProfile}
                 onClose={() => setShowSelfPopup(false)}
                 onStatusChange={handleStatusChange}
-                onOpenSettings={() => setShowSettings(true)}
+                onOpenSettings={(type) => { if (type === 'profile') { setShowProfileModal(true); } else { setShowSettings(true); } }}
               />
             )}
             </AnimatePresence>
@@ -576,6 +578,16 @@ export default function CommunityPage() {
           )}
         </div>
       </div>
+      {/* Profile Modal */}
+      <AnimatePresence>
+        {showProfileModal && (
+          <UserProfileModal
+            onClose={() => setShowProfileModal(false)}
+            onOpenSettings={() => { setShowProfileModal(false); setShowSettings(true); }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Settings Modal */}
       <AnimatePresence>
         {showSettings && <UserSettingsModal onClose={() => setShowSettings(false)} />}
