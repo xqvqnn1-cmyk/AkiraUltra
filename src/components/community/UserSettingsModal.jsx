@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { Avatar } from './UserProfilePopup.jsx';
 import AvatarEditModal from './AvatarEditModal.jsx';
-import AdminPanel from './AdminPanel.jsx';
 
 const BANNER_COLORS = [
   'from-violet-600 to-purple-800',
@@ -39,13 +38,20 @@ const TABS = [
   { id: 'privacy', label: 'Privacy & Blocking', icon: MessageCircle },
 ];
 
+const ADMIN_TABS = [
+  { id: 'users', label: 'Users', icon: User },
+  { id: 'anime', label: 'Anime', icon: Shield },
+];
+
 export default function UserSettingsModal({ onClose }) {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [activeAdminTab, setActiveAdminTab] = useState('users');
   const [userRole, setUserRole] = useState('user');
   const [isOwner, setIsOwner] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [profiles, setProfiles] = useState([]);
+  const [animes, setAnimes] = useState([]);
   const [bio, setBio] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
@@ -72,20 +78,25 @@ export default function UserSettingsModal({ onClose }) {
   useEffect(() => {
     if (!user) return;
     setDisplayName(user.full_name || user.email.split('@')[0]);
+    setIsOwner(user.email === 'giankarlohernandez40@gmail.com');
+    
     Promise.all([
       base44.entities.UserProfile.filter({ user_email: user.email }, null, 1),
       base44.entities.BlockedUser.filter({ user_email: user.email }),
-    ]).then(([profiles, blocked]) => {
-      if (profiles[0]) {
-        setProfile(profiles[0]);
-        setBio(profiles[0].bio || '');
-        setUsername(profiles[0].user_name || '');
-        setBannerColor(profiles[0].banner_color || BANNER_COLORS[0]);
-        setDmEnabled(profiles[0].dm_enabled !== false);
-        setUserRole(profiles[0].role || 'user');
-        setIsOwner(user.email === 'giankarlohernandez40@gmail.com');
+      base44.entities.UserProfile.list(null, 100),
+      base44.entities.Anime.list(null, 50),
+    ]).then(([userProfiles, blocked, allProfiles, animeList]) => {
+      if (userProfiles[0]) {
+        setProfile(userProfiles[0]);
+        setBio(userProfiles[0].bio || '');
+        setUsername(userProfiles[0].user_name || '');
+        setBannerColor(userProfiles[0].banner_color || BANNER_COLORS[0]);
+        setDmEnabled(userProfiles[0].dm_enabled !== false);
+        setUserRole(userProfiles[0].role || 'user');
       }
       setBlockedUsers(blocked);
+      setProfiles(allProfiles || []);
+      setAnimes(animeList || []);
     });
 
     const handleBlockChange = () => {
@@ -254,8 +265,8 @@ export default function UserSettingsModal({ onClose }) {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2.5 px-5 py-2 text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}
+                  onClick={() => { setActiveTab(tab.id); setActiveAdminTab(null); }}
+                  className={`flex items-center gap-2.5 px-5 py-2 text-sm font-medium transition-colors ${activeTab === tab.id && !activeAdminTab ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   {tab.label}
@@ -263,22 +274,27 @@ export default function UserSettingsModal({ onClose }) {
               );
             })}
 
-            <div className="mt-2 px-3">
-              <div className="h-px bg-white/5" />
-            </div>
-
             {(isOwner || userRole === 'admin') && (
               <>
                 <div className="mt-2 px-3">
                   <div className="h-px bg-white/5" />
                 </div>
-                <button
-                  onClick={() => setShowAdminPanel(true)}
-                  className="flex items-center gap-2.5 px-5 py-2 mt-2 text-sm font-medium text-violet-400 hover:bg-violet-500/10 transition-colors"
-                >
-                  <Shield className="w-4 h-4" />
-                  {isOwner ? 'Owner Panel' : 'Admin Panel'}
-                </button>
+                <div className="px-3 mb-2 mt-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-2 mb-1">{isOwner ? 'Owner' : 'Admin'}</p>
+                </div>
+                {ADMIN_TABS.map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setActiveAdminTab(tab.id); setActiveTab(null); }}
+                      className={`flex items-center gap-2.5 px-5 py-2 text-sm font-medium transition-colors ${activeAdminTab === tab.id ? 'bg-violet-500/20 text-violet-400' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </>
             )}
 
@@ -297,7 +313,7 @@ export default function UserSettingsModal({ onClose }) {
             {/* Content header */}
             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/5 flex-shrink-0">
               <h2 className="text-white font-bold text-lg">
-                {TABS.find(t => t.id === activeTab)?.label || 'Settings'}
+                {activeAdminTab ? ADMIN_TABS.find(t => t.id === activeAdminTab)?.label : TABS.find(t => t.id === activeTab)?.label} {activeAdminTab && `(${isOwner ? 'Owner' : 'Admin'})`}
               </h2>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
                 <X className="w-4 h-4" />
@@ -575,22 +591,79 @@ export default function UserSettingsModal({ onClose }) {
                   </div>
                 </>
               )}
+
+              {/* ── ADMIN: USERS TAB ── */}
+              {activeAdminTab === 'users' && (
+               <div>
+                 <h3 className="text-white font-bold text-base mb-4">Manage Users</h3>
+                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                   {profiles.length === 0 ? (
+                     <p className="text-gray-500 text-sm">No users found</p>
+                   ) : (
+                     profiles.map(p => (
+                       <div key={p.user_email} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                         <Avatar name={p.user_name} email={p.user_email} avatarUrl={p.avatar_url} size="sm" />
+                         <div className="flex-1 min-w-0">
+                           <p className="text-sm font-semibold text-white truncate">{p.user_name || p.user_email.split('@')[0]}</p>
+                           <p className="text-xs text-gray-500 truncate">{p.user_email}</p>
+                         </div>
+                         {isOwner && (
+                           <select
+                             value={p.role || 'user'}
+                             onChange={e => base44.entities.UserProfile.update(p.id, { role: e.target.value }).then(() => setProfiles(prev => prev.map(x => x.id === p.id ? { ...x, role: e.target.value } : x)))}
+                             className="bg-[#1a1d23] border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                           >
+                             <option value="user">User</option>
+                             <option value="admin">Admin</option>
+                             <option value="owner">Owner</option>
+                           </select>
+                         )}
+                       </div>
+                     ))
+                   )}
+                 </div>
+               </div>
+              )}
+
+              {/* ── ADMIN: ANIME TAB ── */}
+              {activeAdminTab === 'anime' && (
+               <div>
+                 <h3 className="text-white font-bold text-base mb-4">Featured Anime</h3>
+                 <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto">
+                   {animes.length === 0 ? (
+                     <p className="text-gray-500 text-sm col-span-2">No anime found</p>
+                   ) : (
+                     animes.map(a => (
+                       <div key={a.id} className="flex flex-col bg-white/5 rounded-lg overflow-hidden hover:bg-white/10 transition-colors">
+                         {a.image_url && <img src={a.image_url} alt={a.title} className="w-full h-20 object-cover" />}
+                         <div className="p-2">
+                           <p className="text-xs font-semibold text-white truncate">{a.title}</p>
+                           <p className="text-[10px] text-gray-500">{a.score ? `★ ${a.score}` : 'No score'}</p>
+                         </div>
+                       </div>
+                     ))
+                   )}
+                 </div>
+               </div>
+              )}
               </div>
 
-            {/* Footer save */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 flex-shrink-0">
-              <button onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-semibold border border-white/10 transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold transition-colors flex items-center gap-2"
-              >
-                {saving && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {saved ? 'Saved!' : 'Save Changes'}
-              </button>
-            </div>
+              {/* Footer save */}
+            {!activeAdminTab && (
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 flex-shrink-0">
+                <button onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white text-sm font-semibold border border-white/10 transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold transition-colors flex items-center gap-2"
+                >
+                  {saving && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  {saved ? 'Saved!' : 'Save Changes'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -608,12 +681,7 @@ export default function UserSettingsModal({ onClose }) {
         )}
       </AnimatePresence>
 
-      {/* Admin Panel Modal */}
-      <AnimatePresence>
-        {showAdminPanel && (
-          <AdminPanel isOwner={isOwner} onClose={() => setShowAdminPanel(false)} />
-        )}
-      </AnimatePresence>
+
     </>
   );
 }
