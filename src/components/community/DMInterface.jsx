@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send, Phone, Video, Search, MoreVertical, Plus, Heart, Share2, X, Calendar, Link as Link2, MessageCircle
+  Send, Phone, Video, Search, MoreVertical, Plus, Heart, Share2, X, Calendar, Link as Link2, MessageCircle, Smile
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Avatar } from './UserProfilePopup.jsx';
@@ -32,11 +32,15 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   const [isMuted, setIsMuted] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [showReactionsFor, setShowReactionsFor] = useState(null);
   const menuRef = useRef(null);
   const searchRef = useRef(null);
 
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Fetch profiles, friend status, and block status
   useEffect(() => {
@@ -97,7 +101,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Fetch DM messages
+  // Fetch DM messages and reactions
   const { data: messages = [] } = useQuery({
     queryKey: ['dm', user?.email, targetEmail],
     queryFn: async () => {
@@ -109,6 +113,12 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
     },
     refetchInterval: 3000,
     enabled: !!user?.email && !!targetEmail,
+  });
+
+  const { data: reactions = [] } = useQuery({
+    queryKey: ['dmReactions', user?.email, targetEmail],
+    queryFn: () => base44.entities.MessageReaction.filter({ message_type: 'dm' }, null, 200),
+    refetchInterval: 3000,
   });
 
   // Auto-scroll to latest message
@@ -126,20 +136,24 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
 
   // Send message mutation
   const sendMutation = useMutation({
-    mutationFn: async (content) => {
+    mutationFn: async (payload) => {
       const msg = await base44.entities.DirectMessage.create({
         from_email: user.email,
         from_name: user.full_name || user.email.split('@')[0],
         to_email: targetEmail,
-        content,
+        content: payload.content,
         read: false,
+        image_url: payload.image_url,
+        gif_url: payload.gif_url,
+        reply_to_id: payload.reply_to_id,
+        reply_to_user: payload.reply_to_user,
       });
       // Create notification
       await base44.entities.Notification.create({
         user_email: targetEmail,
         type: 'dm',
         title: `${user.full_name || user.email.split('@')[0]} sent you a message`,
-        body: content.slice(0, 80),
+        body: payload.content.slice(0, 80),
         from_email: user.email,
         from_name: user.full_name || user.email.split('@')[0],
         read: false,
@@ -149,13 +163,46 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
       setInput('');
+      setReplyingTo(null);
     },
   });
 
   const handleSend = (e) => {
     e.preventDefault();
     if (!input.trim() || sendMutation.isPending || isBlocked) return;
-    sendMutation.mutate(input.trim());
+    sendMutation.mutate({
+      content: input.trim(),
+      image_url: null,
+      gif_url: null,
+      reply_to_id: replyingTo?.id,
+      reply_to_user: replyingTo?.from_name,
+    });
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !input.trim()) return;
+    setUploadingFile(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    setUploadingFile(false);
+    const isGif = file.type === 'image/gif';
+    sendMutation.mutate({
+      content: input.trim(),
+      image_url: isGif ? null : file_url,
+      gif_url: isGif ? file_url : null,
+      reply_to_id: replyingTo?.id,
+      reply_to_user: replyingTo?.from_name,
+    });
+  };
+
+  const addReaction = async (msgId, emoji) => {
+    await base44.entities.MessageReaction.create({
+      message_id: msgId,
+      message_type: 'dm',
+      user_email: user?.email,
+      emoji,
+    });
+    queryClient.invalidateQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
   };
 
   const sendFriendRequest = async () => {
@@ -303,6 +350,8 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                 const grouped = prev && prev.from_email === msg.from_email && new Date(msg.created_date) - new Date(prev.created_date) < 5 * 60 * 1000;
                 const senderProfile = isMine ? profile : targetProfile;
                 const senderName = isMine ? (user.full_name || user.email.split('@')[0]) : displayName;
+                const msgReactions = reactions.filter(r => r.message_id === msg.id);
+                const showReactions = showReactionsFor === msg.id;
 
                 return (
                   <div key={msg.id} className={`flex items-start gap-3 group hover:bg-white/[0.02] px-2 py-0.5 rounded-lg ${grouped ? 'pl-14' : ''}`}>
@@ -318,7 +367,70 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                           <span className="text-gray-600 text-[10px]">{format(new Date(msg.created_date), 'MMM d, h:mm a')}</span>
                         </div>
                       )}
+                      {msg.reply_to_user && (
+                        <div className="text-xs text-gray-500 mb-1 pl-2 border-l border-gray-600">
+                          Replying to <span className="text-gray-300 font-semibold">{msg.reply_to_user}</span>
+                        </div>
+                      )}
                       <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
+                      {msg.image_url && (
+                        <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />
+                      )}
+                      {msg.gif_url && (
+                        <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />
+                      )}
+                      {/* Reactions */}
+                      {msgReactions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {Object.entries(msgReactions.reduce((acc, r) => {
+                            acc[r.emoji] = acc[r.emoji] || [];
+                            acc[r.emoji].push(r);
+                            return acc;
+                          }, {})).map(([emoji, reacts]) => (
+                            <div key={emoji} title={reacts.map(r => r.user_email.split('@')[0]).join(', ')} className="px-2 py-1 bg-white/10 rounded-full text-xs flex items-center gap-1 hover:bg-white/20 cursor-pointer transition-colors">
+                              <span>{emoji}</span>
+                              <span className="text-gray-400 text-xs">{reacts.length}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Reaction button */}
+                      <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowReactionsFor(showReactionsFor === msg.id ? null : msg.id)}
+                            className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                          >
+                            <Smile className="w-3 h-3" />
+                          </button>
+                          <AnimatePresence>
+                            {showReactions && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="absolute bottom-full mb-2 bg-[#1a1d23] border border-white/10 rounded-lg p-2 flex gap-1 z-50"
+                              >
+                                {['👍', '❤️', '😂', '🔥', '🎉', '😢'].map(emoji => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => { addReaction(msg.id, emoji); setShowReactionsFor(null); }}
+                                    className="p-1 hover:bg-white/10 rounded transition-colors text-sm"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                        <button
+                          onClick={() => setReplyingTo(msg)}
+                          className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                        >
+                          ↩️
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -327,6 +439,18 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
           })()}
           <div ref={chatEndRef} />
         </div>
+
+      {/* Reply preview */}
+      {replyingTo && (
+        <div className="px-4 pt-2 flex items-center justify-between bg-white/5 rounded-t-xl border-b border-white/5">
+          <div className="text-xs text-gray-400">
+            Replying to <span className="text-white font-semibold">{replyingTo.from_name}</span>
+          </div>
+          <button onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-white">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Message Input */}
       <div className="px-4 pb-4 pt-2 flex-shrink-0 sticky bottom-0 bg-gradient-to-t from-[#0f1115] to-[#0f1115]/80">
@@ -350,16 +474,17 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                     }
                   }}
                 />
-                <button type="button" className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-colors" title="Emoji">
-                  <span className="text-lg">😊</span>
-                </button>
-                <button type="button" className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-colors" title="Attachment">
+                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="text-gray-500 hover:text-white disabled:opacity-30 transition-colors flex-shrink-0">
                   <Plus className="w-4 h-4" />
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*,image/gif" className="hidden" onChange={handleFileUpload} />
+                <button type="submit" disabled={!input.trim() || sendMutation.isPending || uploadingFile} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
               <button
                 type="submit"
-                disabled={!input.trim() || sendMutation.isPending}
+                disabled={!input.trim() || sendMutation.isPending || uploadingFile}
                 className="p-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 text-white transition-colors flex-shrink-0"
                 title="Send message"
               >
