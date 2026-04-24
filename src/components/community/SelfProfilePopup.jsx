@@ -60,7 +60,7 @@ export default function SelfProfilePopup({ profile, onClose, onStatusChange, onO
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.95 }}
       transition={{ duration: 0.15 }}
-      className="absolute bottom-16 left-2 w-72 bg-[#18181f] rounded-2xl shadow-2xl border border-white/10 overflow-hidden z-50"
+      className="absolute bottom-16 left-2 w-72 bg-[#18181f] rounded-2xl shadow-2xl border border-white/10 overflow-hidden z-[60]"
     >
       {/* Banner */}
       <div className="h-20 w-full" style={getBannerStyle(profile)} />

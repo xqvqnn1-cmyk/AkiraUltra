@@ -217,7 +217,7 @@ export default function CommunityPage() {
       <div className="flex flex-1 overflow-hidden pt-16">
 
         {/* ══ LEFT SIDEBAR ══ */}
-        <div className="hidden lg:flex w-60 flex-shrink-0 bg-[#111118] flex-col border-r border-white/5">
+        <div className="hidden lg:flex w-60 flex-shrink-0 bg-[#111118] flex-col border-r border-white/5 overflow-visible relative z-30">
           {/* Header */}
           <div className="h-12 flex items-center px-4 border-b border-white/5 shadow-md flex-shrink-0">
             <span className="flex-1 font-bold text-sm tracking-tight">AkiraPlus</span>
@@ -287,7 +287,7 @@ export default function CommunityPage() {
           </div>
 
           {/* User bar */}
-          <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0 relative z-20">
+          <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0 relative z-40">
             <AnimatePresence>
             {showSelfPopup && (
               <SelfProfilePopup
