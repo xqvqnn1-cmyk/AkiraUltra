@@ -376,59 +376,61 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         <Avatar name={senderName} email={msg.from_email} avatarUrl={senderProfile?.avatar_url} size="md" />
                       </div>
                     )}
-                    <div className="flex-1 min-w-0 flex flex-col">
-                      {!grouped && (
-                        <div className="flex items-baseline gap-2 mb-0.5">
-                          <span className="font-semibold text-sm text-white">{senderName}</span>
-                          <span className="text-gray-600 text-[10px]">{format(new Date(msg.created_date), 'MMM d, h:mm a')}</span>
-                        </div>
-                      )}
-                      {msg.reply_to_user && (
-                        <div className="text-xs text-gray-500 mb-1 pl-2 border-l border-gray-600">
-                          Replying to <span className="text-gray-300 font-semibold">{msg.reply_to_user}</span>
-                        </div>
-                      )}
-                      {editingId === msg.id ? (
-                        <div className="flex gap-2 items-start">
-                          <textarea
-                            autoFocus
-                            value={editText}
-                            onChange={e => setEditText(e.target.value)}
-                            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500/50 resize-none"
-                            rows={2}
-                          />
-                          <div className="flex gap-1">
-                            <button
-                              onClick={async () => {
-                                await base44.entities.DirectMessage.update(msg.id, { content: editText, updated_at: new Date().toISOString() });
-                                queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
-                                setEditingId(null);
-                              }}
-                              className="p-1.5 rounded hover:bg-violet-600/30 text-violet-400 transition-colors"
-                              title="Save"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                              title="Cancel"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col space-y-1">
+                        {!grouped && (
+                          <div className="flex items-baseline gap-2 mb-0.5">
+                            <span className="font-semibold text-sm text-white">{senderName}</span>
+                            <span className="text-gray-600 text-[10px]">{format(new Date(msg.created_date), 'MMM d, h:mm a')}</span>
                           </div>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
-                          {msg.updated_at && msg.updated_at !== msg.created_date && (
-                            <p className="text-[10px] text-gray-600 mt-1">(edited)</p>
-                          )}
-                        </>
-                      )}
-                      {msg.image_url && <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
-                      {msg.gif_url && <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
-                      {/* Reactions container - rendered once per message */}
+                        )}
+                        {msg.reply_to_user && (
+                          <div className="text-xs text-gray-500 pl-2 border-l border-gray-600">
+                            Replying to <span className="text-gray-300 font-semibold">{msg.reply_to_user}</span>
+                          </div>
+                        )}
+                        {editingId === msg.id ? (
+                          <div className="flex gap-2 items-start">
+                            <textarea
+                              autoFocus
+                              value={editText}
+                              onChange={e => setEditText(e.target.value)}
+                              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500/50 resize-none"
+                              rows={2}
+                            />
+                            <div className="flex gap-1">
+                              <button
+                                onClick={async () => {
+                                  await base44.entities.DirectMessage.update(msg.id, { content: editText, updated_at: new Date().toISOString() });
+                                  queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
+                                  setEditingId(null);
+                                }}
+                                className="p-1.5 rounded hover:bg-violet-600/30 text-violet-400 transition-colors"
+                                title="Save"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                                title="Cancel"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
+                            {msg.updated_at && msg.updated_at !== msg.created_date && (
+                              <p className="text-[10px] text-gray-600">(edited)</p>
+                            )}
+                          </>
+                        )}
+                        {msg.image_url && <img src={msg.image_url} alt="attachment" className="max-w-xs rounded-lg max-h-48 object-cover" />}
+                        {msg.gif_url && <img src={msg.gif_url} alt="gif" className="max-w-xs rounded-lg max-h-48 object-cover" />}
+                      </div>
+                      {/* Reactions - properly contained in message body */}
                       {(() => {
                         const uniqueReactions = msgReactions.reduce((acc, r) => {
                           if (!acc[r.emoji]) acc[r.emoji] = [];
@@ -438,7 +440,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         const hasReactions = Object.keys(uniqueReactions).length > 0;
                         
                         return hasReactions && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
+                          <div className="flex flex-wrap gap-1.5 mt-2 w-full">
                             {Object.entries(uniqueReactions).map(([emoji, reacts]) => {
                               const userReacted = reacts.some(r => r.user_email === user?.email);
                               return (
@@ -446,7 +448,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                                   key={`${msg.id}-${emoji}`}
                                   onClick={() => addReaction(msg.id, emoji)}
                                   title={reacts.map(r => r.user_email.split('@')[0]).join(', ')}
-                                  className={`px-2 py-1 rounded-full text-xs flex items-center gap-1.5 transition-colors no-select ${userReacted ? 'bg-violet-600/30 border border-violet-500/50' : 'bg-white/10 hover:bg-white/20'}`}
+                                  className={`px-2 py-1 rounded-full text-xs flex items-center gap-1.5 transition-colors flex-shrink-0 ${userReacted ? 'bg-violet-600/30 border border-violet-500/50' : 'bg-white/10 hover:bg-white/20'}`}
                                 >
                                   <span>{emoji}</span>
                                   <span className={userReacted ? 'text-violet-300' : 'text-gray-400'}>{reacts.length}</span>
