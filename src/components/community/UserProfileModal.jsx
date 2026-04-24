@@ -93,14 +93,19 @@ function SelfProfileModal({ onClose, onOpenSettings }) {
     >
       {/* LEFT */}
       <div className="w-[240px] flex-shrink-0 bg-[#0f1115] flex flex-col overflow-hidden border-r border-white/5">
-        <div className="h-20 relative group cursor-pointer flex-shrink-0" style={getBannerStyle(profile)} onClick={() => bannerInputRef.current?.click()}>
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+        {/* Banner Container */}
+        <div 
+          className="relative h-32 flex-shrink-0 bg-cover bg-center overflow-hidden group cursor-pointer" 
+          style={getBannerStyle(profile)} 
+          onClick={() => bannerInputRef.current?.click()}
+        >
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-10">
             <Camera className="w-4 h-4 text-white" />
           </div>
           <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
-        </div>
-        <div className="px-4 flex-1 overflow-y-auto scrollbar-hide">
-          <div className="relative -mt-8 mb-2 w-fit group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
+          
+          {/* Avatar - Absolute Positioned Overlap */}
+          <div className="absolute -bottom-8 left-4 z-20 group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
             <div className="ring-4 ring-[#0f1115] rounded-full">
               <Avatar name={dn} email={user.email} avatarUrl={profile?.avatar_url} size="xl" />
             </div>
@@ -108,6 +113,9 @@ function SelfProfileModal({ onClose, onOpenSettings }) {
               {uploadingAvatar ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Camera className="w-4 h-4 text-white" />}
             </div>
           </div>
+        </div>
+        
+        <div className="px-4 pt-12 pb-3 flex-1 overflow-y-auto scrollbar-hide">
           <div className="mb-2">
             <h2 className="font-black text-white text-base leading-tight">{dn}</h2>
             <p className="text-gray-500 text-xs font-mono">{tag}</p>
