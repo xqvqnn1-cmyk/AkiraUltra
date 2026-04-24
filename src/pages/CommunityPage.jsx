@@ -15,6 +15,7 @@ import NotificationPanel from '../components/community/NotificationPanel.jsx';
 import SelfProfilePopup from '../components/community/SelfProfilePopup.jsx';
 import UserSettingsModal from '../components/community/UserSettingsModal.jsx';
 import UserProfileModal from '../components/community/UserProfileModal.jsx';
+import DMInterface from '../components/community/DMInterface.jsx';
 import { format } from 'date-fns';
 
 const CHANNELS = [
@@ -57,7 +58,6 @@ export default function CommunityPage() {
   const [friendsTab, setFriendsTab] = useState('online');
   const [dmTarget, setDmTarget] = useState(null); // { email, name }
   const [input, setInput] = useState('');
-  const [dmInput, setDmInput] = useState('');
   const [showNotifs, setShowNotifs] = useState(false);
   const [showMemberList, setShowMemberList] = useState(true);
   const [profiles, setProfiles] = useState([]);
@@ -67,7 +67,6 @@ export default function CommunityPage() {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   const endRef = useRef(null);
-  const dmEndRef = useRef(null);
   const inputRef = useRef(null);
   const notifsRef = useRef(null);
 
@@ -151,46 +150,9 @@ export default function CommunityPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['chat', activeChannel] }); setInput(''); },
   });
 
-  /* ── DM messages ── */
-  const { data: dmMessages = [] } = useQuery({
-    queryKey: ['dm', user?.email, dmTarget?.email],
-    queryFn: async () => {
-      const [sent, received] = await Promise.all([
-        base44.entities.DirectMessage.filter({ from_email: user.email, to_email: dmTarget.email }, 'created_date', 80),
-        base44.entities.DirectMessage.filter({ from_email: dmTarget.email, to_email: user.email }, 'created_date', 80),
-      ]);
-      return [...sent, ...received].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
-    },
-    refetchInterval: 5000,
-    enabled: view === 'dm' && !!dmTarget && !!user,
-  });
 
-  useEffect(() => { dmEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [dmMessages.length]);
 
-  // mark received as read
-  useEffect(() => {
-    if (!dmTarget) return;
-    dmMessages.filter(m => m.from_email === dmTarget.email && !m.read)
-      .forEach(m => base44.entities.DirectMessage.update(m.id, { read: true }));
-  }, [dmMessages, dmTarget]);
 
-  const sendDMMutation = useMutation({
-    mutationFn: async (content) => {
-      const msg = await base44.entities.DirectMessage.create({
-        from_email: user.email,
-        from_name: user.full_name || user.email.split('@')[0],
-        to_email: dmTarget.email, content, read: false,
-      });
-      await base44.entities.Notification.create({
-        user_email: dmTarget.email, type: 'dm',
-        title: `${user.full_name || user.email.split('@')[0]} sent you a message`,
-        body: content.slice(0, 80),
-        from_email: user.email, from_name: user.full_name || user.email.split('@')[0], read: false,
-      });
-      return msg;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['dm', user?.email, dmTarget?.email] }); setDmInput(''); },
-  });
 
   /* ── Notifications ── */
   const { data: notifications = [] } = useQuery({
@@ -239,7 +201,6 @@ export default function CommunityPage() {
   const grouped = groupMessages(messages);
 
   const handleSend = (e) => { e.preventDefault(); if (!input.trim() || !user || sendMutation.isPending) return; sendMutation.mutate(input.trim()); };
-  const handleSendDM = (e) => { e.preventDefault(); if (!dmInput.trim() || !user || sendDMMutation.isPending) return; sendDMMutation.mutate(dmInput.trim()); };
 
   const handleStatusChange = async (status) => {
     const ex = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
@@ -452,83 +413,11 @@ export default function CommunityPage() {
 
           {/* DM view — full inline like Discord */}
           {view === 'dm' && dmTarget && (
-            <div className="flex-1 flex flex-col min-w-0 bg-[#141420] w-full lg:w-auto">
-              {/* DM topbar */}
-              <div className="h-12 border-b border-white/5 flex items-center px-4 gap-3 flex-shrink-0">
-                {(() => { const p = profiles.find(x => x.user_email === dmTarget.email); return (
-                  <div className="relative flex-shrink-0">
-                    <Avatar name={dmTarget.name} email={dmTarget.email} avatarUrl={p?.avatar_url} size="sm" />
-                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#141420] ${STATUS_COLORS[p?.status || 'offline']}`} />
-                  </div>
-                ); })()}
-                <span className="font-bold text-white text-sm">{dmTarget.name}</span>
-                <span className="text-gray-600 text-xs">· Direct Message</span>
-              </div>
-
-              {/* DM Messages */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1">
-                {dmMessages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
-                    {(() => { const p = profiles.find(x => x.user_email === dmTarget.email); return (
-                      <>
-                        <div className="w-20 h-20 rounded-full mb-4 overflow-hidden ring-4 ring-white/5">
-                          <Avatar name={dmTarget.name} email={dmTarget.email} avatarUrl={p?.avatar_url} size="xl" />
-                        </div>
-                        <p className="text-white font-bold text-xl mb-1">{dmTarget.name}</p>
-                        <p className="text-gray-500 text-sm">This is the beginning of your direct message history with <span className="text-gray-300 font-semibold">{dmTarget.name}</span>.</p>
-                      </>
-                    ); })()}
-                  </div>
-                )}
-                {dmMessages.map((msg, i) => {
-                  const isMine = msg.from_email === user.email;
-                  const prev = dmMessages[i - 1];
-                  const grouped = prev && prev.from_email === msg.from_email && new Date(msg.created_date) - new Date(prev.created_date) < 5 * 60 * 1000;
-                  const senderProfile = profiles.find(p => p.user_email === msg.from_email);
-                  const senderName = isMine ? displayName : dmTarget.name;
-                  return (
-                    <div key={msg.id} className={`flex items-start gap-3 group hover:bg-white/[0.02] px-2 py-0.5 rounded-lg ${grouped ? 'pl-14' : 'pt-3'}`}>
-                      {!grouped && (
-                        <div className="flex-shrink-0 mt-0.5">
-                          <Avatar name={senderName} email={msg.from_email} avatarUrl={senderProfile?.avatar_url} size="md" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        {!grouped && (
-                          <div className="flex items-baseline gap-2 mb-0.5">
-                            <span className="font-semibold text-sm text-white">{senderName}</span>
-                            <span className="text-gray-600 text-[10px]">{format(new Date(msg.created_date), 'MMM d, h:mm a')}</span>
-                          </div>
-                        )}
-                        <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={dmEndRef} />
-              </div>
-
-              {/* DM Input */}
-              <div className="px-4 pb-4 pt-1 flex-shrink-0">
-                {user ? (
-                  <form onSubmit={handleSendDM}>
-                    <div className="flex items-center gap-2 bg-[#1e1e2e] rounded-xl px-4 py-3 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
-                      <input value={dmInput} onChange={e => setDmInput(e.target.value)}
-                        placeholder={`Message ${dmTarget.name}`}
-                        className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
-                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendDM(e); } }} autoFocus />
-                      <button type="submit" disabled={!dmInput.trim() || sendDMMutation.isPending} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
-                        <Send className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="bg-[#1e1e2e] rounded-xl px-4 py-3 text-center text-sm text-gray-500">
-                    <Link to="/signin" className="text-violet-400 hover:text-violet-300 font-semibold">Sign in</Link> to send messages
-                  </div>
-                )}
-              </div>
-            </div>
+            <DMInterface 
+              targetEmail={dmTarget.email} 
+              targetName={dmTarget.name} 
+              onClose={() => setView('friends')}
+            />
           )}
 
           {/* Friends view */}
