@@ -23,8 +23,12 @@
     "user_email": {
       "type": "string"
     },
-    "user_avatar_color": {
-      "type": "string"
+    "mentions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of mentioned user emails"
     }
   },
   "required": [

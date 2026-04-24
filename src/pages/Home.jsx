@@ -86,10 +86,10 @@ export default function Home() {
 
               <div className="flex items-center gap-3">
                 <Link
-                  to={`/watch/${featured.mal_id}`}
+                  to={`/anime/${featured.mal_id}`}
                   className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-lg font-bold transition-all hover:scale-105 shadow-lg shadow-violet-900/50"
                 >
-                  <Play className="w-5 h-5 fill-current" /> Start Watching
+                  <Play className="w-5 h-5 fill-current" /> Watch Now
                 </Link>
                 <Link
                   to={`/anime/${featured.mal_id}`}
@@ -97,9 +97,6 @@ export default function Home() {
                 >
                   <Info className="w-4 h-4" /> Details
                 </Link>
-                <button className="flex items-center justify-center w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur rounded-lg border border-white/10 transition-all">
-                  <Plus className="w-5 h-5" />
-                </button>
               </div>
             </motion.div>
           </div>

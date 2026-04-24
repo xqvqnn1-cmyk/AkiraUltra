@@ -109,12 +109,12 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => base44.auth.redirectToLogin(window.location.href)}
+            <a
+              href={`/login?next=${encodeURIComponent(window.location.href)}`}
               className="hidden md:flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all"
             >
               <LogIn className="w-4 h-4" /> Sign In
-            </button>
+            </a>
           )}
 
           <button
@@ -150,9 +150,9 @@ export default function Navbar() {
                 Sign Out
               </button>
             ) : (
-              <button onClick={() => base44.auth.redirectToLogin(window.location.href)} className="block py-3 text-sm text-violet-400 font-semibold">
+              <a href="/login" className="block py-3 text-sm text-violet-400 font-semibold">
                 Sign In
-              </button>
+              </a>
             )}
           </motion.div>
         )}

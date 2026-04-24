@@ -9,12 +9,10 @@
       "type": "string"
     },
     "avatar_color": {
-      "type": "string",
-      "description": "Hex color for avatar gradient"
+      "type": "string"
     },
     "currently_watching": {
-      "type": "string",
-      "description": "Anime title currently being watched"
+      "type": "string"
     },
     "currently_watching_id": {
       "type": "string"
