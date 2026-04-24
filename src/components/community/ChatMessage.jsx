@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AtSign } from 'lucide-react';
 import { Avatar } from './UserProfilePopup.jsx';
-import UserProfilePopup from './UserProfilePopup.jsx';
+import UserProfileModal from './UserProfileModal.jsx';
 
 function parseContent(content, currentUserName) {
   // Highlight @mentions
@@ -80,19 +80,18 @@ export default function ChatMessage({ msg, currentUser, onMention, profiles = []
         )}
       </div>
 
-      {/* Profile Popup */}
+      {/* Profile Modal */}
       <AnimatePresence>
         {showProfile && (
-          <UserProfilePopup
-            userEmail={msg.user_email}
-            userName={displayName}
-            anchorRef={msg.grouped ? nameRef : avatarRef}
+          <UserProfileModal
+            targetEmail={msg.user_email}
+            targetName={displayName}
             onClose={() => setShowProfile(false)}
             onDM={(email, name) => {
               setShowProfile(false);
-              // bubble up via custom event
               window.dispatchEvent(new CustomEvent('openDM', { detail: { email, name } }));
             }}
+            onOpenSettings={() => setShowProfile(false)}
           />
         )}
       </AnimatePresence>
