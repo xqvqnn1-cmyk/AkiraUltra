@@ -4,7 +4,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send, Phone, Video, Search, MoreVertical, Plus, Heart, Share2, X, Calendar, Link as Link2, MessageCircle, Smile
+  Send, Phone, Video, Search, MoreVertical, Plus, Heart, Share2, X, Calendar, Link as Link2, MessageCircle, Smile, 
+  ThumbsUp, Laugh, Flame, Trophy, Heart as HeartIcon, Frown, Edit, Trash2, Reply
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Avatar } from './UserProfilePopup.jsx';
@@ -199,7 +200,12 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
 
   const addReaction = async (msgId, emoji) => {
     const existingReaction = reactions.find(r => r.message_id === msgId && r.user_email === user?.email && r.emoji === emoji);
-    if (existingReaction) return; // User already reacted with this emoji
+    if (existingReaction) {
+      // Remove reaction if user already reacted with this emoji
+      await base44.entities.MessageReaction.delete(existingReaction.id);
+      queryClient.invalidateQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
+      return;
+    }
     
     const reactionCount = reactions.filter(r => r.message_id === msgId && r.emoji === emoji).length;
     if (reactionCount >= 4) return; // Limit 4 reactions per emoji
@@ -403,9 +409,10 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         <div className="relative">
                           <button
                             onClick={() => setShowReactionsFor(showReactionsFor === msg.id ? null : msg.id)}
-                            className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                            className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            title="React"
                           >
-                            <Smile className="w-3 h-3" />
+                            <Smile className="w-3.5 h-3.5" />
                           </button>
                           <AnimatePresence>
                             {showReactions && (
@@ -413,13 +420,13 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="absolute bottom-full mb-2 bg-[#1a1d23] border border-white/10 rounded-lg p-2 flex gap-1 z-50"
+                                className="absolute bottom-full right-0 mb-2 bg-[#1a1d23] border border-white/10 rounded-lg p-2 flex gap-1 z-50"
                               >
                                 {['👍', '❤️', '😂', '🔥', '🎉', '😢'].map(emoji => (
                                   <button
                                     key={emoji}
                                     onClick={() => { addReaction(msg.id, emoji); setShowReactionsFor(null); }}
-                                    className="p-1 hover:bg-white/10 rounded transition-colors text-sm"
+                                    className="p-1.5 hover:bg-white/10 rounded transition-colors text-sm hover:scale-110"
                                   >
                                     {emoji}
                                   </button>
@@ -430,9 +437,10 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         </div>
                         <button
                           onClick={() => setReplyingTo(msg)}
-                          className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                          className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                          title="Reply"
                         >
-                          ↩️
+                          <Reply className="w-3.5 h-3.5" />
                         </button>
                         {isMine && (
                           <button
@@ -443,24 +451,22 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                                 queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
                               }
                             }}
-                            className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-xs"
-                            title="Edit"
+                            className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            title="Edit message"
                           >
-                            ✏️
+                            <Edit className="w-3.5 h-3.5" />
                           </button>
                         )}
                         {isMine && (
                           <button
                             onClick={async () => {
-                              if (confirm('Delete message?')) {
-                                await base44.entities.DirectMessage.delete(msg.id);
-                                queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
-                              }
+                              await base44.entities.DirectMessage.delete(msg.id);
+                              queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
                             }}
-                            className="p-1 rounded text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-colors text-xs"
-                            title="Delete"
+                            className="p-1.5 rounded hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-colors"
+                            title="Delete message"
                           >
-                            🗑️
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
