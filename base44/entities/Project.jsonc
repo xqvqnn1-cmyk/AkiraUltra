@@ -1,0 +1,57 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Project description"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "archived",
+        "on_hold"
+      ],
+      "default": "active"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "progress": {
+      "type": "number",
+      "description": "Progress percentage 0-100",
+      "default": 0
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "development",
+        "design",
+        "research",
+        "marketing",
+        "operations"
+      ],
+      "default": "development"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

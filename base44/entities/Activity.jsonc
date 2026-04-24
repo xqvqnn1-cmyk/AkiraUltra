@@ -1,0 +1,31 @@
+{
+  "name": "Activity",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "task_created",
+        "task_completed",
+        "project_created",
+        "project_updated",
+        "milestone_reached"
+      ],
+      "description": "Type of activity"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "related_entity": {
+      "type": "string",
+      "description": "ID of related entity"
+    }
+  },
+  "required": [
+    "type",
+    "title"
+  ]
+}
