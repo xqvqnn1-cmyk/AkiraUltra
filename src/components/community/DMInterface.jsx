@@ -428,29 +428,34 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                       )}
                       {msg.image_url && <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
                       {msg.gif_url && <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
-                      {/* Reactions - inline with message */}
-                      {msgReactions.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {Object.entries(msgReactions.reduce((acc, r) => {
-                            acc[r.emoji] = acc[r.emoji] || [];
-                            acc[r.emoji].push(r);
-                            return acc;
-                          }, {})).map(([emoji, reacts]) => {
-                            const userReacted = reacts.some(r => r.user_email === user?.email);
-                            return (
-                              <button
-                                key={emoji}
-                                onClick={() => addReaction(msg.id, emoji)}
-                                title={reacts.map(r => r.user_email.split('@')[0]).join(', ')}
-                                className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 transition-colors ${userReacted ? 'bg-violet-600/30 border border-violet-500/50' : 'bg-white/10 hover:bg-white/20'}`}
-                              >
-                                <span>{emoji}</span>
-                                <span className={userReacted ? 'text-violet-300 text-xs' : 'text-gray-400 text-xs'}>{reacts.length}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                      {/* Reactions container - rendered once per message */}
+                      {(() => {
+                        const uniqueReactions = msgReactions.reduce((acc, r) => {
+                          if (!acc[r.emoji]) acc[r.emoji] = [];
+                          acc[r.emoji].push(r);
+                          return acc;
+                        }, {});
+                        const hasReactions = Object.keys(uniqueReactions).length > 0;
+                        
+                        return hasReactions && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {Object.entries(uniqueReactions).map(([emoji, reacts]) => {
+                              const userReacted = reacts.some(r => r.user_email === user?.email);
+                              return (
+                                <button
+                                  key={`${msg.id}-${emoji}`}
+                                  onClick={() => addReaction(msg.id, emoji)}
+                                  title={reacts.map(r => r.user_email.split('@')[0]).join(', ')}
+                                  className={`px-2 py-1 rounded-full text-xs flex items-center gap-1.5 transition-colors no-select ${userReacted ? 'bg-violet-600/30 border border-violet-500/50' : 'bg-white/10 hover:bg-white/20'}`}
+                                >
+                                  <span>{emoji}</span>
+                                  <span className={userReacted ? 'text-violet-300' : 'text-gray-400'}>{reacts.length}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                       {/* Action buttons */}
                       <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="relative">
