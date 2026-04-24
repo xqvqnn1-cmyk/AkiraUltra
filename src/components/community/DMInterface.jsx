@@ -376,7 +376,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         <Avatar name={senderName} email={msg.from_email} avatarUrl={senderProfile?.avatar_url} size="md" />
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex flex-col">
                       {!grouped && (
                         <div className="flex items-baseline gap-2 mb-0.5">
                           <span className="font-semibold text-sm text-white">{senderName}</span>
@@ -428,7 +428,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                       )}
                       {msg.image_url && <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
                       {msg.gif_url && <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
-                      {/* Reactions */}
+                      {/* Reactions - inline with message */}
                       {msgReactions.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {Object.entries(msgReactions.reduce((acc, r) => {
@@ -451,8 +451,8 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                           })}
                         </div>
                       )}
-                      {/* Reaction & action button */}
-                      <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Action buttons */}
+                      <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="relative">
                           <button
                             onClick={() => setShowReactionsFor(showReactionsFor === msg.id ? null : msg.id)}
