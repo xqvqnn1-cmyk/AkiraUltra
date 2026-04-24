@@ -83,7 +83,7 @@ export default function UserSettingsModal({ onClose }) {
         setBannerColor(profiles[0].banner_color || BANNER_COLORS[0]);
         setDmEnabled(profiles[0].dm_enabled !== false);
         setUserRole(profiles[0].role || 'user');
-        setIsOwner(user.email === 'giankarlohernandez40@gmail.com' || profiles[0].role === 'owner');
+        setIsOwner(user.email === 'giankarlohernandez40@gmail.com');
       }
       setBlockedUsers(blocked);
     });
@@ -141,12 +141,15 @@ export default function UserSettingsModal({ onClose }) {
       };
       
       await base44.entities.UserProfile.update(profile.id, updateData);
-      await base44.auth.updateMe({ full_name: displayName });
+      if (displayName !== user.full_name) {
+        await base44.auth.updateMe({ full_name: displayName });
+      }
       
       setProfile(prev => ({ ...prev, ...updateData }));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
+      console.error(err);
       setDisplayNameError('Failed to save changes');
     } finally {
       setSaving(false);
