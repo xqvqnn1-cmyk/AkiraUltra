@@ -74,23 +74,34 @@ export default function CommunityPage() {
   /* ── Profiles ── */
   useEffect(() => {
     base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles);
-    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles), 15000);
+    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles), 30000);
     return () => clearInterval(iv);
   }, []);
 
   /* ── Status ── */
   useEffect(() => {
     if (!user) return;
+    let profileId = null;
+    let lastStatus = null;
+
     const update = async (status) => {
-      const ex = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
-      if (ex[0]) await base44.entities.UserProfile.update(ex[0].id, { status });
+      if (status === lastStatus) return; // skip if no change
+      lastStatus = status;
+      if (!profileId) {
+        const ex = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
+        if (ex[0]) profileId = ex[0].id;
+      }
+      if (profileId) await base44.entities.UserProfile.update(profileId, { status });
     };
+
     update('online');
     const onVis = () => update(document.hidden ? 'idle' : 'online');
-    window.addEventListener('beforeunload', () => update('offline'));
+    const onUnload = () => { if (profileId && lastStatus !== 'offline') base44.entities.UserProfile.update(profileId, { status: 'offline' }); };
+    window.addEventListener('beforeunload', onUnload);
     document.addEventListener('visibilitychange', onVis);
     return () => {
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('beforeunload', onUnload);
       update('offline');
     };
   }, [user]);
@@ -122,7 +133,7 @@ export default function CommunityPage() {
   const { data: messages = [] } = useQuery({
     queryKey: ['chat', activeChannel],
     queryFn: () => base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 80),
-    refetchInterval: 3000,
+    refetchInterval: 5000,
     enabled: view === 'channel',
   });
 
@@ -150,7 +161,7 @@ export default function CommunityPage() {
       ]);
       return [...sent, ...received].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
     },
-    refetchInterval: 3000,
+    refetchInterval: 5000,
     enabled: view === 'dm' && !!dmTarget && !!user,
   });
 
@@ -185,7 +196,7 @@ export default function CommunityPage() {
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.email],
     queryFn: () => base44.entities.Notification.filter({ user_email: user.email }, '-created_date', 30),
-    enabled: !!user, refetchInterval: 10000,
+    enabled: !!user, refetchInterval: 20000,
   });
   const unreadCount = notifications.filter(n => !n.read).length;
   const markRead = async (id) => { await base44.entities.Notification.update(id, { read: true }); queryClient.invalidateQueries({ queryKey: ['notifications', user?.email] }); };
@@ -202,7 +213,7 @@ export default function CommunityPage() {
       ]);
       return [...sent, ...received];
     },
-    enabled: !!user, refetchInterval: 15000,
+    enabled: !!user, refetchInterval: 30000,
   });
 
   const acceptFriend = async (req) => {
