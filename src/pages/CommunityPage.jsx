@@ -17,6 +17,7 @@ import SelfProfilePopup from '../components/community/SelfProfilePopup.jsx';
 import UserSettingsModal from '../components/community/UserSettingsModal.jsx';
 import UserProfileModal from '../components/community/UserProfileModal.jsx';
 import DMInterface from '../components/community/DMInterface.jsx';
+import ActivityFeed from '../components/community/ActivityFeed.jsx';
 import { format } from 'date-fns';
 
 const CHANNELS = [
@@ -536,28 +537,40 @@ export default function CommunityPage() {
                 </div>
               </div>
 
-              {/* Right member list */}
+              {/* Right sidebar - Activity Feed & Members */}
               <AnimatePresence>
                 {showMemberList && (
-                  <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 240, opacity: 1 }} exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+                  <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 280, opacity: 1 }} exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }}
                     className="hidden lg:flex flex-shrink-0 bg-[#111118] border-l border-white/5 overflow-hidden flex-col">
-                    <div className="flex-1 overflow-y-auto py-4 px-3 scrollbar-hide">
-                      {onlineProfiles.length > 0 && (
-                        <div className="mb-4">
-                          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 px-1 mb-2">Online — {onlineProfiles.length}</p>
-                          <div className="space-y-0.5">
-                            {onlineProfiles.map(p => <MemberItem key={p.user_email} profile={p} currentUser={user} onDM={() => openDM(p.user_email, p.user_name || p.user_email.split('@')[0])} />)}
-                          </div>
+                    <div className="flex-1 overflow-hidden flex flex-col gap-4 p-3">
+                      {/* Activity Feed */}
+                      <div className="flex-1 min-h-0">
+                        <ActivityFeed />
+                      </div>
+                      {/* Member List */}
+                      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-white/5 overflow-hidden bg-[#0f1115]">
+                        <div className="px-3 py-2.5 border-b border-white/5 flex-shrink-0">
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Members</p>
                         </div>
-                      )}
-                      {offlineProfiles.length > 0 && (
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 px-1 mb-2">Offline — {offlineProfiles.length}</p>
-                          <div className="space-y-0.5 opacity-50">
-                            {offlineProfiles.slice(0, 20).map(p => <MemberItem key={p.user_email} profile={p} currentUser={user} onDM={() => openDM(p.user_email, p.user_name || p.user_email.split('@')[0])} />)}
-                          </div>
+                        <div className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5 px-2 py-2">
+                          {onlineProfiles.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-1 mb-1.5">Online — {onlineProfiles.length}</p>
+                              <div className="space-y-0.5">
+                                {onlineProfiles.map(p => <MemberItem key={p.user_email} profile={p} currentUser={user} onDM={() => openDM(p.user_email, p.user_name || p.user_email.split('@')[0])} />)}
+                              </div>
+                            </div>
+                          )}
+                          {offlineProfiles.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 px-1 mb-1.5">Offline — {offlineProfiles.length}</p>
+                              <div className="space-y-0.5 opacity-50">
+                                {offlineProfiles.slice(0, 20).map(p => <MemberItem key={p.user_email} profile={p} currentUser={user} onDM={() => openDM(p.user_email, p.user_name || p.user_email.split('@')[0])} />)}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </motion.div>
                 )}
