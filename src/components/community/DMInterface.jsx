@@ -116,14 +116,14 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
       ]);
       return [...sent, ...received].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
     },
-    refetchInterval: 3000,
+    refetchInterval: 30000,
     enabled: !!user?.email && !!targetEmail,
   });
 
   const { data: reactions = [] } = useQuery({
     queryKey: ['dmReactions', user?.email, targetEmail],
     queryFn: () => base44.entities.MessageReaction.filter({ message_type: 'dm' }, null, 200),
-    refetchInterval: 10000,
+    refetchInterval: 45000,
   });
 
   // Auto-scroll to latest message
