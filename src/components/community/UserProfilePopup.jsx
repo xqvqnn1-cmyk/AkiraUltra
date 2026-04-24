@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tv, MessageCircle, UserPlus, UserCheck, Clock, X } from 'lucide-react';
+import { Tv, MessageCircle, UserPlus, UserCheck, Clock, X, Camera, Edit2, Check } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { format } from 'date-fns';
 
 const AVATAR_COLORS = [
   'from-violet-600 to-pink-600',
@@ -20,9 +21,19 @@ export function getAvatarColor(email) {
   return AVATAR_COLORS[sum % AVATAR_COLORS.length];
 }
 
-export function Avatar({ name, email, size = 'md', onClick }) {
+export function Avatar({ name, email, avatarUrl, size = 'md', onClick }) {
   const color = getAvatarColor(email);
   const sizes = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-12 h-12 text-base', xl: 'w-16 h-16 text-xl' };
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name || 'Avatar'}
+        onClick={onClick}
+        className={`${sizes[size]} rounded-full object-cover flex-shrink-0 ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-violet-400 transition-all' : ''}`}
+      />
+    );
+  }
   return (
     <div
       onClick={onClick}
@@ -41,9 +52,15 @@ export function StatusDot({ status, border = 'border-[#0d0d14]' }) {
 export default function UserProfilePopup({ userEmail, userName, anchorRef, onClose, onDM }) {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [friendStatus, setFriendStatus] = useState(null); // null | 'pending_sent' | 'pending_received' | 'friends'
+  const [friendStatus, setFriendStatus] = useState(null);
   const [friendReqId, setFriendReqId] = useState(null);
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioInput, setBioInput] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const popupRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const isSelf = user?.email === userEmail;
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -58,19 +75,21 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
 
   useEffect(() => {
     if (!userEmail) return;
-    base44.entities.UserProfile.filter({ user_email: userEmail }, null, 1).then(r => setProfile(r[0] || null));
+    base44.entities.UserProfile.filter({ user_email: userEmail }, null, 1).then(r => {
+      setProfile(r[0] || null);
+      setBioInput(r[0]?.bio || '');
+    });
     if (user && user.email !== userEmail) {
-      // Check friend status
       Promise.all([
         base44.entities.FriendRequest.filter({ from_email: user.email, to_email: userEmail }),
         base44.entities.FriendRequest.filter({ from_email: userEmail, to_email: user.email }),
       ]).then(([sent, received]) => {
         if (sent.length > 0) {
-          if (sent[0].status === 'accepted') { setFriendStatus('friends'); setFriendReqId(sent[0].id); }
-          else if (sent[0].status === 'pending') { setFriendStatus('pending_sent'); setFriendReqId(sent[0].id); }
+          setFriendStatus(sent[0].status === 'accepted' ? 'friends' : 'pending_sent');
+          setFriendReqId(sent[0].id);
         } else if (received.length > 0) {
-          if (received[0].status === 'accepted') { setFriendStatus('friends'); setFriendReqId(received[0].id); }
-          else if (received[0].status === 'pending') { setFriendStatus('pending_received'); setFriendReqId(received[0].id); }
+          setFriendStatus(received[0].status === 'accepted' ? 'friends' : 'pending_received');
+          setFriendReqId(received[0].id);
         }
       });
     }
@@ -78,7 +97,6 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
 
   const sendFriendRequest = async () => {
     const req = await base44.entities.FriendRequest.create({ from_email: user.email, from_name: user.full_name || user.email.split('@')[0], to_email: userEmail, status: 'pending' });
-    // Create notification for target user
     await base44.entities.Notification.create({ user_email: userEmail, type: 'friend_request', title: 'Friend Request', body: `${user.full_name || user.email.split('@')[0]} sent you a friend request`, from_email: user.email, from_name: user.full_name || user.email.split('@')[0], read: false });
     setFriendStatus('pending_sent');
     setFriendReqId(req.id);
@@ -90,8 +108,27 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
     setFriendStatus('friends');
   };
 
-  const isSelf = user?.email === userEmail;
+  const saveBio = async () => {
+    if (!profile) return;
+    const updated = await base44.entities.UserProfile.update(profile.id, { bio: bioInput });
+    setProfile(prev => ({ ...prev, bio: bioInput }));
+    setEditingBio(false);
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    setUploadingAvatar(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    await base44.entities.UserProfile.update(profile.id, { avatar_url: file_url });
+    setProfile(prev => ({ ...prev, avatar_url: file_url }));
+    setUploadingAvatar(false);
+    // Notify global to refresh
+    window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { email: user.email, avatarUrl: file_url } }));
+  };
+
   const displayName = profile?.user_name || userName || userEmail?.split('@')[0] || 'Unknown';
+  const joinedDate = profile?.created_date ? format(new Date(profile.created_date), 'MMM yyyy') : null;
 
   return (
     <motion.div
@@ -109,12 +146,28 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
       {/* Avatar + close */}
       <div className="px-4 pb-4">
         <div className="flex items-start justify-between -mt-8 mb-3">
-          <div className="relative">
-            <Avatar name={displayName} email={userEmail} size="xl" />
+          <div className="relative group">
+            <Avatar name={displayName} email={userEmail} avatarUrl={profile?.avatar_url} size="xl" />
             {profile?.status && (
               <div className="absolute -bottom-0.5 -right-0.5">
                 <StatusDot status={profile.status} border="border-[#111118]" />
               </div>
+            )}
+            {isSelf && (
+              <>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                >
+                  {uploadingAvatar ? (
+                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-white" />
+                  )}
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </>
             )}
           </div>
           <button onClick={onClose} className="mt-8 text-gray-500 hover:text-white">
@@ -123,14 +176,49 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
         </div>
 
         <h3 className="font-bold text-white text-base">{displayName}</h3>
-        <p className="text-gray-500 text-xs">{userEmail}</p>
 
-        {profile?.bio && <p className="text-gray-400 text-xs mt-2 leading-relaxed">{profile.bio}</p>}
+        {/* Status */}
+        <div className="flex items-center gap-2 mt-1">
+          <StatusDot status={profile?.status || 'offline'} border="border-[#111118]" />
+          <span className="text-xs text-gray-500 capitalize">{profile?.status || 'offline'}</span>
+          {joinedDate && <span className="text-xs text-gray-600">· Joined {joinedDate}</span>}
+        </div>
 
+        {/* Bio */}
+        {isSelf ? (
+          <div className="mt-3">
+            {editingBio ? (
+              <div className="flex gap-2 items-start">
+                <textarea
+                  value={bioInput}
+                  onChange={e => setBioInput(e.target.value)}
+                  placeholder="Write something about yourself..."
+                  maxLength={120}
+                  rows={2}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none"
+                />
+                <button onClick={saveBio} className="p-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white">
+                  <Check className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setEditingBio(true)} className="w-full text-left group flex items-start gap-1.5">
+                <p className="text-gray-500 text-xs leading-relaxed flex-1">
+                  {profile?.bio || <span className="text-gray-700 italic">Click to add a bio...</span>}
+                </p>
+                <Edit2 className="w-3 h-3 text-gray-700 group-hover:text-gray-400 flex-shrink-0 mt-0.5 transition-colors" />
+              </button>
+            )}
+          </div>
+        ) : (
+          profile?.bio && <p className="text-gray-400 text-xs mt-2 leading-relaxed">{profile.bio}</p>
+        )}
+
+        {/* Currently watching */}
         {profile?.status === 'watching' && profile?.currently_watching && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-violet-400">
-            <Tv className="w-3 h-3" />
-            <span>Watching <span className="font-semibold">{profile.currently_watching}</span></span>
+          <div className="mt-3 flex items-center gap-2 text-xs bg-violet-600/10 border border-violet-500/20 rounded-lg px-2.5 py-2">
+            <Tv className="w-3 h-3 text-violet-400 flex-shrink-0" />
+            <span className="text-violet-300">Watching <span className="font-semibold">{profile.currently_watching}</span></span>
           </div>
         )}
 
@@ -160,6 +248,10 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
               <MessageCircle className="w-3.5 h-3.5" /> Message
             </button>
           </div>
+        )}
+
+        {isSelf && (
+          <p className="text-center text-gray-700 text-[10px] mt-4">Click your avatar to change it</p>
         )}
       </div>
     </motion.div>

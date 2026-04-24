@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, List, X, Menu, LogIn, LogOut, User } from 'lucide-react';
+import { Search, List, X, Menu, LogIn, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
@@ -21,6 +21,17 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState(null);
+
+  useEffect(() => {
+    if (!user?.email) return;
+    base44.entities.UserProfile.filter({ user_email: user.email }, null, 1).then(r => {
+      if (r[0]?.avatar_url) setAvatarUrl(r[0].avatar_url);
+    });
+    const handler = (e) => { if (e.detail.email === user.email) setAvatarUrl(e.detail.avatarUrl); };
+    window.addEventListener('avatarUpdated', handler);
+    return () => window.removeEventListener('avatarUpdated', handler);
+  }, [user?.email]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -42,7 +53,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center font-black text-white text-sm">A+</div>
+          <img src="https://media.base44.com/images/public/69eaec00027d7dc32aaa376a/43ed0279b_ChatGPTImageApr24202612_30_57AM.png" alt="AkiraPlus" className="w-8 h-8 object-contain" />
           <span className="font-black text-xl tracking-tight text-white">Akira<span className="text-violet-400">+</span></span>
         </Link>
 
@@ -95,9 +106,13 @@ export default function Navbar() {
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-600 to-pink-600 flex items-center justify-center text-xs font-bold text-white">
-                  {(user?.full_name || user?.email || 'U')[0].toUpperCase()}
-                </div>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-600 to-pink-600 flex items-center justify-center text-xs font-bold text-white">
+                    {(user?.full_name || user?.email || 'U')[0].toUpperCase()}
+                  </div>
+                )}
                 <span className="text-sm text-gray-300 max-w-[100px] truncate">{user?.full_name || user?.email?.split('@')[0]}</span>
               </div>
               <button
@@ -109,12 +124,12 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <a
-              href={`/login?next=${encodeURIComponent(window.location.href)}`}
+            <Link
+              to={`/signin?next=${encodeURIComponent(window.location.href)}`}
               className="hidden md:flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all"
             >
               <LogIn className="w-4 h-4" /> Sign In
-            </a>
+            </Link>
           )}
 
           <button
@@ -150,9 +165,9 @@ export default function Navbar() {
                 Sign Out
               </button>
             ) : (
-              <a href="/login" className="block py-3 text-sm text-violet-400 font-semibold">
+              <Link to="/signin" className="block py-3 text-sm text-violet-400 font-semibold">
                 Sign In
-              </a>
+              </Link>
             )}
           </motion.div>
         )}

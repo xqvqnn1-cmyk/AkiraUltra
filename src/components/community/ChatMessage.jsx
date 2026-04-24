@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AtSign } from 'lucide-react';
-import { Avatar } from './UserProfilePopup';
-import UserProfilePopup from './UserProfilePopup';
+import { Avatar } from './UserProfilePopup.jsx';
+import UserProfilePopup from './UserProfilePopup.jsx';
 
 function parseContent(content, currentUserName) {
   // Highlight @mentions
@@ -21,11 +21,13 @@ function parseContent(content, currentUserName) {
   });
 }
 
-export default function ChatMessage({ msg, currentUser, onMention }) {
+export default function ChatMessage({ msg, currentUser, onMention, profiles = [] }) {
   const [showProfile, setShowProfile] = useState(false);
   const avatarRef = useRef(null);
   const nameRef = useRef(null);
   const displayName = msg.user_name || msg.user_email?.split('@')[0] || 'Anonymous';
+  const senderProfile = profiles.find(p => p.user_email === msg.user_email);
+  const avatarUrl = senderProfile?.avatar_url;
 
   return (
     <motion.div
@@ -39,6 +41,7 @@ export default function ChatMessage({ msg, currentUser, onMention }) {
           <Avatar
             name={displayName}
             email={msg.user_email}
+            avatarUrl={avatarUrl}
             onClick={() => setShowProfile(v => !v)}
           />
         </div>

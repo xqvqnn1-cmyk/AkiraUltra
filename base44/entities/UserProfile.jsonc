@@ -8,6 +8,9 @@
     "user_name": {
       "type": "string"
     },
+    "avatar_url": {
+      "type": "string"
+    },
     "avatar_color": {
       "type": "string"
     },

@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import Home from './pages/Home';
+import SignInPage from './pages/SignInPage';
 import BrowsePage from './pages/BrowsePage';
 import AnimePage from './pages/AnimePage';
 import WatchPage from './pages/WatchPage';
@@ -21,8 +22,12 @@ const AuthenticatedApp = () => {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-[#0a0a0f]">
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin mx-auto" />
-          <p className="text-violet-400/60 text-xs mt-4 tracking-widest font-mono">LOADING...</p>
+          <img
+            src="https://media.base44.com/images/public/69eaec00027d7dc32aaa376a/43ed0279b_ChatGPTImageApr24202612_30_57AM.png"
+            alt="AkiraPlus"
+            className="w-20 h-20 object-contain mx-auto mb-4 animate-pulse"
+          />
+          <p className="text-violet-400/60 text-xs tracking-widest font-mono">LOADING...</p>
         </div>
       </div>
     );
@@ -44,6 +49,7 @@ const AuthenticatedApp = () => {
       <Route path="/watchlist" element={<WatchlistPage />} />
       <Route path="/schedule" element={<SchedulePage />} />
       <Route path="/community" element={<CommunityPage />} />
+      <Route path="/signin" element={<SignInPage />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

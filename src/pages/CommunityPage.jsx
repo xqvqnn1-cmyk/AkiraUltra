@@ -5,10 +5,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Send, Hash, Users, Tv, Bell, UserPlus, AtSign, MessageCircle, X } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '@/lib/AuthContext';
-import ChatMessage from '../components/community/ChatMessage';
-import NotificationPanel from '../components/community/NotificationPanel';
-import DMPanel from '../components/community/DMPanel';
-import { Avatar, StatusDot } from '../components/community/UserProfilePopup';
+import ChatMessage from '../components/community/ChatMessage.jsx';
+import NotificationPanel from '../components/community/NotificationPanel.jsx';
+import DMPanel from '../components/community/DMPanel.jsx';
+import { Avatar, StatusDot } from '../components/community/UserProfilePopup.jsx';
 
 const CHANNELS = [
   { id: 'general', label: 'general', desc: 'General anime talk' },
@@ -307,7 +307,7 @@ export default function CommunityPage() {
                 onClick={() => { if (user && u.user_email !== user.email) setDmTarget({ email: u.user_email, name: u.user_name || u.user_email.split('@')[0] }); }}
               >
                 <div className="relative flex-shrink-0">
-                  <Avatar name={u.user_name} email={u.user_email} size="sm" />
+                  <Avatar name={u.user_name} email={u.user_email} avatarUrl={u.avatar_url} size="sm" />
                   <div className="absolute -bottom-0.5 -right-0.5">
                     <StatusDot status={u.status} border="border-[#0d0d14]" />
                   </div>
@@ -320,9 +320,6 @@ export default function CommunityPage() {
                     </p>
                   )}
                 </div>
-                {user && u.user_email !== user.email && (
-                  <MessageCircle className="w-3 h-3 text-gray-600 opacity-0 group-hover:opacity-100" />
-                )}
               </button>
             ))}
           </div>
@@ -331,12 +328,12 @@ export default function CommunityPage() {
           {user && (
             <div className="p-3 border-t border-white/5 flex items-center gap-2">
               <div className="relative">
-                <Avatar name={user.full_name} email={user.email} size="sm" />
+                <Avatar name={user.full_name} email={user.email} avatarUrl={allProfiles.find(p => p.user_email === user.email)?.avatar_url} size="sm" />
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-[#0d0d14]" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-white truncate">{user.full_name || user.email.split('@')[0]}</p>
-                <p className="text-[10px] text-gray-600 truncate">{user.email}</p>
+                <p className="text-[10px] text-green-400 truncate">● Online</p>
               </div>
             </div>
           )}
@@ -368,6 +365,7 @@ export default function CommunityPage() {
                 msg={msg}
                 currentUser={user}
                 onMention={handleMention}
+                profiles={allProfiles}
               />
             ))}
             <div ref={messagesEndRef} />
@@ -390,7 +388,7 @@ export default function CommunityPage() {
                       onClick={() => insertMention(p.user_name)}
                       className="w-full flex items-center gap-2 px-3 py-2 hover:bg-violet-600/20 transition-colors text-left"
                     >
-                      <Avatar name={p.user_name} email={p.user_email} size="sm" />
+                      <Avatar name={p.user_name} email={p.user_email} avatarUrl={p.avatar_url} size="sm" />
                       <span className="text-sm text-white">{p.user_name}</span>
                     </button>
                   ))}
@@ -401,7 +399,7 @@ export default function CommunityPage() {
             {!user ? (
               <div className="bg-white/5 rounded-xl p-4 text-center border border-white/10">
                 <p className="text-gray-400 text-sm">
-                  <a href="/login" className="text-violet-400 hover:underline font-semibold">Sign in</a> to chat in #{currentChannel?.label}
+                  <a href="/signin" className="text-violet-400 hover:underline font-semibold">Sign in</a> to chat in #{currentChannel?.label}
                 </p>
               </div>
             ) : (
@@ -450,7 +448,7 @@ export default function CommunityPage() {
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left group"
                     >
                       <div className="relative">
-                        <Avatar name={u.user_name} email={u.user_email} size="sm" />
+                        <Avatar name={u.user_name} email={u.user_email} avatarUrl={u.avatar_url} size="sm" />
                         <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0d0d14] ${statusFilter === 'watching' ? 'bg-violet-400' : 'bg-green-400'}`} />
                       </div>
                       <div className="min-w-0 flex-1">
