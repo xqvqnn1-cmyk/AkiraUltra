@@ -692,6 +692,32 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
               <AnimatePresence>
                 {showMenu && (
                   <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-0 top-full mt-1 w-48 bg-[#1a1d23] border border-white/10 rounded-lg shadow-lg z-50 overflow-hidden">
+                    {friendStatus === 'friends' && (
+                      <button 
+                        onClick={async () => {
+                          await base44.entities.FriendRequest.update(friendReqId, { status: 'declined' });
+                          setFriendStatus(null);
+                          setFriendReqId(null);
+                          setShowMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs text-orange-400 hover:bg-orange-500/10 transition-colors"
+                      >
+                        Remove Friend
+                      </button>
+                    )}
+                    {friendStatus === 'pending_received' && (
+                      <button 
+                        onClick={async () => {
+                          await base44.entities.FriendRequest.update(friendReqId, { status: 'declined' });
+                          setFriendStatus(null);
+                          setFriendReqId(null);
+                          setShowMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors"
+                      >
+                        Decline Request
+                      </button>
+                    )}
                     <button 
                       onClick={async () => { 
                         if (isBlocked) {
@@ -706,7 +732,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         window.dispatchEvent(new CustomEvent('blockStatusChanged', { detail: { blockedEmail: targetEmail, isBlocked: !isBlocked, isMuted: false } }));
                         setShowMenu(false); 
                       }} 
-                      className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors"
+                      className={`w-full text-left px-4 py-2 text-xs transition-colors ${friendStatus ? 'border-t border-white/5' : ''} ${isBlocked ? 'text-green-400 hover:bg-green-500/10' : 'text-gray-300 hover:bg-white/5'}`}
                     >
                       {isBlocked ? 'Unblock User' : 'Block User'}
                     </button>
