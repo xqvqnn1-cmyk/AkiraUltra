@@ -72,6 +72,7 @@ export default function CommunityPage() {
   const [gifUrl, setGifUrl] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
+  const typingUpdateTimeoutRef = useRef(null);
 
   const endRef = useRef(null);
   const inputRef = useRef(null);
@@ -278,13 +279,19 @@ export default function CommunityPage() {
   const handleInputChange = async (e) => {
     setInput(e.target.value);
     
-    // Update typing status
-    if (!isTyping) {
-      setIsTyping(true);
-      const myProf = profiles.find(p => p.user_email === user?.email);
-      if (myProf) {
-        base44.entities.UserProfile.update(myProf.id, { is_typing: true, last_active: new Date().toISOString() });
+    // Debounce typing status updates (max once per 2 seconds)
+    if (!typingUpdateTimeoutRef.current) {
+      if (!isTyping) {
+        setIsTyping(true);
+        const myProf = profiles.find(p => p.user_email === user?.email);
+        if (myProf) {
+          base44.entities.UserProfile.update(myProf.id, { is_typing: true, last_active: new Date().toISOString() });
+        }
       }
+
+      typingUpdateTimeoutRef.current = setTimeout(() => {
+        typingUpdateTimeoutRef.current = null;
+      }, 2000);
     }
 
     // Clear typing after 4 seconds of inactivity
