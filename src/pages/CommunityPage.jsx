@@ -253,10 +253,10 @@ export default function CommunityPage() {
     <div className="flex flex-col h-screen bg-[#0b0b10] text-white overflow-hidden">
       <Navbar />
 
-      <div className="flex flex-1 overflow-hidden pt-16">
+      <div className="flex flex-1 overflow-hidden pt-16 gap-0 lg:gap-0">
 
-        {/* ══ LEFT SIDEBAR (240px) ══ */}
-        <div className="w-60 flex-shrink-0 bg-[#111118] flex flex-col border-r border-white/5">
+        {/* ══ LEFT SIDEBAR ══ */}
+        <div className="hidden lg:flex w-60 flex-shrink-0 bg-[#111118] flex-col border-r border-white/5">
           {/* Header */}
           <div className="h-12 flex items-center px-4 border-b border-white/5 shadow-md flex-shrink-0">
             <span className="flex-1 font-bold text-sm tracking-tight">AkiraPlus</span>
@@ -326,7 +326,7 @@ export default function CommunityPage() {
           </div>
 
           {/* User bar */}
-          <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0 relative">
+          <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0 relative z-20">
             <AnimatePresence>
             {showSelfPopup && (
               <SelfProfilePopup
@@ -351,8 +351,8 @@ export default function CommunityPage() {
               </div>
             </button>
             <div className="flex items-center gap-0.5">
-              <div className="relative" ref={notifsRef}>
-                <button onClick={() => setShowNotifs(v => !v)} className="p-1.5 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors relative">
+              <div className="relative z-30" ref={notifsRef}>
+                <button onClick={() => setShowNotifs(v => !v)} className="p-1.5 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors relative" aria-label="Notifications">
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full text-[8px] flex items-center justify-center font-bold text-white border border-[#0d0d15]">{unreadCount}</span>}
                 </button>
@@ -366,12 +366,12 @@ export default function CommunityPage() {
         </div>
 
         {/* ══ MAIN CONTENT ══ */}
-        <div className="flex-1 flex min-w-0 overflow-hidden">
+        <div className="flex-1 flex min-w-0 overflow-hidden flex-col lg:flex-row">
 
           {/* Channel view */}
           {view === 'channel' && (
             <>
-              <div className="flex-1 flex flex-col min-w-0 bg-[#141420]">
+              <div className="flex-1 flex flex-col min-w-0 bg-[#141420] w-full lg:w-auto">
                 {/* Topbar */}
                 <div className="h-12 border-b border-white/5 flex items-center px-4 gap-3 flex-shrink-0">
                   <Hash className="w-4 h-4 text-gray-400" />
@@ -425,7 +425,7 @@ export default function CommunityPage() {
               <AnimatePresence>
                 {showMemberList && (
                   <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 240, opacity: 1 }} exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }}
-                    className="flex-shrink-0 bg-[#111118] border-l border-white/5 overflow-hidden flex flex-col">
+                    className="hidden lg:flex flex-shrink-0 bg-[#111118] border-l border-white/5 overflow-hidden flex-col">
                     <div className="flex-1 overflow-y-auto py-4 px-3 scrollbar-hide">
                       {onlineProfiles.length > 0 && (
                         <div className="mb-4">
@@ -452,7 +452,7 @@ export default function CommunityPage() {
 
           {/* DM view — full inline like Discord */}
           {view === 'dm' && dmTarget && (
-            <div className="flex-1 flex flex-col min-w-0 bg-[#141420]">
+            <div className="flex-1 flex flex-col min-w-0 bg-[#141420] w-full lg:w-auto">
               {/* DM topbar */}
               <div className="h-12 border-b border-white/5 flex items-center px-4 gap-3 flex-shrink-0">
                 {(() => { const p = profiles.find(x => x.user_email === dmTarget.email); return (
@@ -533,7 +533,7 @@ export default function CommunityPage() {
 
           {/* Friends view */}
           {view === 'friends' && (
-            <div className="flex-1 flex flex-col min-w-0 bg-[#141420]">
+            <div className="flex-1 flex flex-col min-w-0 bg-[#141420] w-full lg:w-auto">
               <div className="h-12 border-b border-white/5 flex items-center px-4 gap-3 flex-shrink-0">
                 <Users className="w-4 h-4 text-gray-400" />
                 <span className="font-bold text-white text-sm">Friends</span>
