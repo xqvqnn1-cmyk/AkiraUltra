@@ -4,6 +4,7 @@ import { Search, List, X, Menu, LogIn, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
+import UserSettingsModal from '../community/UserSettingsModal.jsx';
 
 const navLinks = [
   { label: 'Home', path: '/' },
@@ -18,6 +19,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
@@ -105,7 +107,10 @@ export default function Navbar() {
 
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+              >
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
                 ) : (
@@ -114,13 +119,6 @@ export default function Navbar() {
                   </div>
                 )}
                 <span className="text-sm text-gray-300 max-w-[100px] truncate">{user?.full_name || user?.email?.split('@')[0]}</span>
-              </div>
-              <button
-                onClick={() => logout()}
-                className="hidden md:flex p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
@@ -140,6 +138,11 @@ export default function Navbar() {
           </button>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettings && <UserSettingsModal onClose={() => setShowSettings(false)} />}
+      </AnimatePresence>
 
       {/* Mobile Menu */}
       <AnimatePresence>

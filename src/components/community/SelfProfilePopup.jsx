@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Pencil, Copy, LogOut, Check } from 'lucide-react';
 import { Avatar } from './UserProfilePopup.jsx';
 import { useAuth } from '@/lib/AuthContext';
@@ -35,7 +34,7 @@ const STATUS_COLORS = {
   offline: 'bg-gray-600',
 };
 
-export default function SelfProfilePopup({ profile, onClose, onStatusChange, onCopyId }) {
+export default function SelfProfilePopup({ profile, onClose, onStatusChange, onOpenSettings }) {
   const { user, logout } = useAuth();
   const ref = useRef(null);
   const [copied, setCopied] = React.useState(false);
@@ -104,14 +103,13 @@ export default function SelfProfilePopup({ profile, onClose, onStatusChange, onC
 
       {/* Actions */}
       <div className="px-2 py-2">
-        <Link
-          to="/settings"
-          onClick={onClose}
+        <button
+          onClick={() => { onOpenSettings?.(); onClose(); }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors"
         >
           <Pencil className="w-4 h-4" />
           <span className="text-sm font-medium">Edit Profile</span>
-        </Link>
+        </button>
 
         <button
           onClick={handleCopyId}

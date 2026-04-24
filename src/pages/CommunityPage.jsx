@@ -13,6 +13,7 @@ import { Avatar } from '../components/community/UserProfilePopup.jsx';
 import ChatMessage from '../components/community/ChatMessage.jsx';
 import NotificationPanel from '../components/community/NotificationPanel.jsx';
 import SelfProfilePopup from '../components/community/SelfProfilePopup.jsx';
+import UserSettingsModal from '../components/community/UserSettingsModal.jsx';
 import { format } from 'date-fns';
 
 const CHANNELS = [
@@ -61,6 +62,7 @@ export default function CommunityPage() {
   const [profiles, setProfiles] = useState([]);
   const [recentDMs, setRecentDMs] = useState([]); // list of { email, name }
   const [showSelfPopup, setShowSelfPopup] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const endRef = useRef(null);
   const dmEndRef = useRef(null);
@@ -313,13 +315,14 @@ export default function CommunityPage() {
           {/* User bar */}
           <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0 relative">
             <AnimatePresence>
-              {showSelfPopup && (
-                <SelfProfilePopup
-                  profile={myProfile}
-                  onClose={() => setShowSelfPopup(false)}
-                  onStatusChange={handleStatusChange}
-                />
-              )}
+            {showSelfPopup && (
+              <SelfProfilePopup
+                profile={myProfile}
+                onClose={() => setShowSelfPopup(false)}
+                onStatusChange={handleStatusChange}
+                onOpenSettings={() => setShowSettings(true)}
+              />
+            )}
             </AnimatePresence>
             <button
               onClick={() => setShowSelfPopup(v => !v)}
@@ -344,7 +347,7 @@ export default function CommunityPage() {
                   {showNotifs && <NotificationPanel notifications={notifications} onClose={() => setShowNotifs(false)} onMarkRead={markRead} onMarkAllRead={markAllRead} />}
                 </AnimatePresence>
               </div>
-              <Link to="/settings" className="p-1.5 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors"><Settings className="w-4 h-4" /></Link>
+              <button onClick={() => setShowSettings(true)} className="p-1.5 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors"><Settings className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
@@ -573,6 +576,10 @@ export default function CommunityPage() {
           )}
         </div>
       </div>
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettings && <UserSettingsModal onClose={() => setShowSettings(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
