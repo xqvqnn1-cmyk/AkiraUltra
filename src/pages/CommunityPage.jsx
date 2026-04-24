@@ -253,7 +253,7 @@ export default function CommunityPage() {
     <div className="flex flex-col h-screen bg-[#0b0b10] text-white overflow-hidden">
       <Navbar />
 
-      <div className="flex flex-1 overflow-hidden pt-16 gap-0 lg:gap-0">
+      <div className="flex flex-1 overflow-hidden pt-16">
 
         {/* ══ LEFT SIDEBAR ══ */}
         <div className="hidden lg:flex w-60 flex-shrink-0 bg-[#111118] flex-col border-r border-white/5">
