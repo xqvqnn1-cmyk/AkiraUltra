@@ -1,0 +1,34 @@
+{
+  "name": "ChatMessage",
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string",
+      "description": "Message content"
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "general",
+        "recommendations",
+        "spoilers",
+        "seasonal",
+        "off-topic"
+      ],
+      "default": "general"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "user_avatar_color": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "content",
+    "channel"
+  ]
+}
