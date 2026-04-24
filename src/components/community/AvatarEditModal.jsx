@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ZoomIn, ZoomOut, Image, Sparkles } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Image, ImagePlus } from 'lucide-react';
 
-export default function AvatarEditModal({ currentAvatarUrl, displayName, userEmail, onApply, onClose }) {
+export default function AvatarEditModal({ currentAvatarUrl, displayName, userEmail, onApply, onClose, onBannerUpload }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(currentAvatarUrl || null);
   const [zoom, setZoom] = useState(1);
@@ -108,14 +108,20 @@ export default function AvatarEditModal({ currentAvatarUrl, displayName, userEma
             </button>
           </div>
 
-          {/* Promo card */}
+          {/* Banner upload card */}
           <div className="mt-4 flex items-center justify-between bg-[#1a1d23] rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-violet-400 flex-shrink-0" />
-              <p className="text-sm text-gray-300">Animate your avatar with <span className="text-violet-400 font-semibold">Premium</span></p>
+              <ImagePlus className="w-4 h-4 text-violet-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-white font-semibold">Upload Banner Picture</p>
+                <p className="text-xs text-gray-500">Set a custom profile banner</p>
+              </div>
             </div>
-            <button className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 transition-all">
-              Get Premium
+            <button
+              onClick={() => onBannerUpload?.()}
+              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#2a2d35] hover:bg-white/10 border border-white/10 transition-all"
+            >
+              Upload
             </button>
           </div>
         </div>
