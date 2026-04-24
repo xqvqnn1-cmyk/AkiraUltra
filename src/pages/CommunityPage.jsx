@@ -67,6 +67,8 @@ export default function CommunityPage() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [imageUrl, setImageUrl] = useState(null);
+  const [gifUrl, setGifUrl] = useState(null);
 
   const endRef = useRef(null);
   const inputRef = useRef(null);
@@ -137,6 +139,13 @@ export default function CommunityPage() {
     queryFn: () => base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 80),
     refetchInterval: 5000,
     enabled: view === 'channel',
+  });
+
+  /* ── Reactions ── */
+  const { data: reactions = [] } = useQuery({
+    queryKey: ['chatReactions', activeChannel],
+    queryFn: () => base44.entities.MessageReaction.filter({ message_type: 'chat' }, null, 200),
+    refetchInterval: 5000,
   });
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
@@ -238,27 +247,27 @@ export default function CommunityPage() {
     if (!input.trim() || !user || sendMutation.isPending) return;
     sendMutation.mutate({
       content: input.trim(),
-      image_url: null,
-      gif_url: null,
+      image_url: imageUrl,
+      gif_url: gifUrl,
       reply_to_id: replyingTo?.id,
       reply_to_user: replyingTo?.user_name,
     });
+    setImageUrl(null);
+    setGifUrl(null);
   };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !input.trim()) return;
+    if (!file) return;
     setUploadingFile(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     setUploadingFile(false);
     const isGif = file.type === 'image/gif';
-    sendMutation.mutate({
-      content: input.trim(),
-      image_url: isGif ? null : file_url,
-      gif_url: isGif ? file_url : null,
-      reply_to_id: replyingTo?.id,
-      reply_to_user: replyingTo?.user_name,
-    });
+    if (isGif) {
+      setGifUrl(file_url);
+    } else {
+      setImageUrl(file_url);
+    }
   };
 
   const handleStatusChange = async (status) => {
@@ -414,12 +423,34 @@ export default function CommunityPage() {
                     </div>
                   )}
                   {grouped.map(msg => (
-                    <ChatMessage key={msg.id} msg={msg} currentUser={user} profiles={profiles}
+                    <ChatMessage key={msg.id} msg={msg} currentUser={user} profiles={profiles} reactions={reactions}
                       onMention={name => { setInput(v => v + `@${name} `); inputRef.current?.focus(); }}
-                      onReply={msg => setReplyingTo(msg)} />
+                      onReply={msg => setReplyingTo(msg)}
+                      onDelete={async (msgId) => {
+                        await base44.entities.ChatMessage.delete(msgId);
+                        queryClient.invalidateQueries({ queryKey: ['chat', activeChannel] });
+                      }}
+                      onEdit={async (msgId, newContent) => {
+                        await base44.entities.ChatMessage.update(msgId, { content: newContent, updated_at: new Date().toISOString() });
+                        queryClient.invalidateQueries({ queryKey: ['chat', activeChannel] });
+                      }}
+                    />
                   ))}
                   <div ref={endRef} />
                 </div>
+                {/* Image preview */}
+                {(imageUrl || gifUrl) && (
+                  <div className="px-4 pt-2 pb-1 flex items-center justify-between bg-white/5 border-b border-white/5">
+                    <div className="flex items-center gap-2">
+                      {imageUrl && <img src={imageUrl} alt="preview" className="h-8 rounded" />}
+                      {gifUrl && <img src={gifUrl} alt="preview" className="h-8 rounded" />}
+                    </div>
+                    <button onClick={() => { setImageUrl(null); setGifUrl(null); }} className="text-gray-500 hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Reply preview */}
                 {replyingTo && (
                   <div className="px-4 pt-2 flex items-center justify-between bg-white/5 rounded-t-xl border-b border-white/5">
@@ -445,7 +476,7 @@ export default function CommunityPage() {
                           <Plus className="w-4 h-4" />
                         </button>
                         <input ref={fileInputRef} type="file" accept="image/*,image/gif" className="hidden" onChange={handleFileUpload} />
-                        <button type="submit" disabled={!input.trim() || sendMutation.isPending || uploadingFile} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
+                        <button type="submit" disabled={(!input.trim() && !imageUrl && !gifUrl) || sendMutation.isPending} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
                           <Send className="w-4 h-4" />
                         </button>
                       </div>

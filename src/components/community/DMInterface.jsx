@@ -35,6 +35,8 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [showReactionsFor, setShowReactionsFor] = useState(null);
+  const [imageUrl, setImageUrl] = useState(null);
+  const [gifUrl, setGifUrl] = useState(null);
   const menuRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -169,30 +171,30 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
 
   const handleSend = (e) => {
     e.preventDefault();
-    if (!input.trim() || sendMutation.isPending || isBlocked) return;
+    if (!input.trim() && !imageUrl && !gifUrl || sendMutation.isPending || isBlocked) return;
     sendMutation.mutate({
       content: input.trim(),
-      image_url: null,
-      gif_url: null,
+      image_url: imageUrl,
+      gif_url: gifUrl,
       reply_to_id: replyingTo?.id,
       reply_to_user: replyingTo?.from_name,
     });
+    setImageUrl(null);
+    setGifUrl(null);
   };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !input.trim()) return;
+    if (!file) return;
     setUploadingFile(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     setUploadingFile(false);
     const isGif = file.type === 'image/gif';
-    sendMutation.mutate({
-      content: input.trim(),
-      image_url: isGif ? null : file_url,
-      gif_url: isGif ? file_url : null,
-      reply_to_id: replyingTo?.id,
-      reply_to_user: replyingTo?.from_name,
-    });
+    if (isGif) {
+      setGifUrl(file_url);
+    } else {
+      setImageUrl(file_url);
+    }
   };
 
   const addReaction = async (msgId, emoji) => {
@@ -396,7 +398,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                           ))}
                         </div>
                       )}
-                      {/* Reaction button */}
+                      {/* Reaction & action button */}
                       <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="relative">
                           <button
@@ -432,6 +434,35 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         >
                           ↩️
                         </button>
+                        {isMine && (
+                          <button
+                            onClick={async () => {
+                              const newContent = prompt('Edit message:', msg.content);
+                              if (newContent) {
+                                await base44.entities.DirectMessage.update(msg.id, { content: newContent, updated_at: new Date().toISOString() });
+                                queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
+                              }
+                            }}
+                            className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-xs"
+                            title="Edit"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                        {isMine && (
+                          <button
+                            onClick={async () => {
+                              if (confirm('Delete message?')) {
+                                await base44.entities.DirectMessage.delete(msg.id);
+                                queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
+                              }
+                            }}
+                            className="p-1 rounded text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-colors text-xs"
+                            title="Delete"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -441,6 +472,19 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
           })()}
           <div ref={chatEndRef} />
         </div>
+
+      {/* Image preview */}
+      {(imageUrl || gifUrl) && (
+        <div className="px-4 pt-2 pb-1 flex items-center justify-between bg-white/5 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            {imageUrl && <img src={imageUrl} alt="preview" className="h-8 rounded" />}
+            {gifUrl && <img src={gifUrl} alt="preview" className="h-8 rounded" />}
+          </div>
+          <button onClick={() => { setImageUrl(null); setGifUrl(null); }} className="text-gray-500 hover:text-white">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Reply preview */}
       {replyingTo && (
@@ -480,7 +524,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                   <Plus className="w-4 h-4" />
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*,image/gif" className="hidden" onChange={handleFileUpload} />
-                <button type="submit" disabled={!input.trim() || sendMutation.isPending || uploadingFile} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
+                <button type="submit" disabled={(!input.trim() && !imageUrl && !gifUrl) || sendMutation.isPending} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
                   <Send className="w-4 h-4" />
                 </button>
               </div>
