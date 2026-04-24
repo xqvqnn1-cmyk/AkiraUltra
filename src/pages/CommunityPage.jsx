@@ -80,22 +80,22 @@ export default function CommunityPage() {
     enabled: !!user,
   });
 
-  // Upsert own profile as online — run once on mount only
+  // Upsert own profile as online — run once per email (stable dep)
   const profileUpserted = useRef(false);
   useEffect(() => {
-    if (!user || profileUpserted.current) return;
+    if (!user?.email || profileUpserted.current) return;
     profileUpserted.current = true;
-    const upsertProfile = async () => {
-      const existing = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
-      const data = { user_email: user.email, user_name: user.full_name || user.email.split('@')[0], status: 'online' };
+    const email = user.email;
+    const name = user.full_name || user.email.split('@')[0];
+    base44.entities.UserProfile.filter({ user_email: email }, null, 1).then(existing => {
+      const data = { user_email: email, user_name: name, status: 'online' };
       if (existing.length > 0) {
-        await base44.entities.UserProfile.update(existing[0].id, data);
+        base44.entities.UserProfile.update(existing[0].id, data);
       } else {
-        await base44.entities.UserProfile.create(data);
+        base44.entities.UserProfile.create(data);
       }
-    };
-    upsertProfile();
-  }, [user]);
+    });
+  }, [user?.email]);
 
   // Sort oldest first
   const sortedMessages = [...messages].reverse();
