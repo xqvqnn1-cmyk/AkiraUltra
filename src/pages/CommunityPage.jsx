@@ -81,8 +81,8 @@ export default function CommunityPage() {
 
   /* ── Profiles ── */
   useEffect(() => {
-    base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles);
-    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles), 30000);
+    base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {});
+    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {}), 45000);
     return () => clearInterval(iv);
   }, []);
 
@@ -141,7 +141,7 @@ export default function CommunityPage() {
   const { data: messages = [] } = useQuery({
     queryKey: ['chat', activeChannel],
     queryFn: () => base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 80),
-    refetchInterval: 8000,
+    refetchInterval: 12000,
     enabled: view === 'channel',
   });
 
@@ -149,7 +149,7 @@ export default function CommunityPage() {
   const { data: reactions = [] } = useQuery({
     queryKey: ['chatReactions', activeChannel],
     queryFn: () => base44.entities.MessageReaction.filter({ message_type: 'chat' }, null, 200),
-    refetchInterval: 10000,
+    refetchInterval: 15000,
   });
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
