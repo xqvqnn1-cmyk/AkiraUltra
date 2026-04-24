@@ -29,7 +29,7 @@ export default function NotificationPanel({ notifications = [], onClose, onMarkR
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: 8 }}
       transition={{ duration: 0.15 }}
-      className="absolute right-0 bottom-full mb-2 w-80 bg-[#111118] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden"
+      className="absolute -right-32 bottom-full mb-2 w-80 bg-[#111118] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
         <span className="font-bold text-white text-sm">Notifications</span>
