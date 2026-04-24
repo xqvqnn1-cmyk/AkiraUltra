@@ -6,22 +6,23 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
-import AppLayout from './components/layout/AppLayout';
-import Dashboard from './pages/Dashboard';
-import Projects from './pages/Projects';
-import Tasks from './pages/Tasks';
-import Analytics from './pages/Analytics';
-import SettingsPage from './pages/SettingsPage';
+import Home from './pages/Home';
+import BrowsePage from './pages/BrowsePage';
+import AnimePage from './pages/AnimePage';
+import WatchPage from './pages/WatchPage';
+import WatchlistPage from './pages/WatchlistPage';
+import SchedulePage from './pages/SchedulePage';
+import CommunityPage from './pages/CommunityPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background cyber-grid">
+      <div className="fixed inset-0 flex items-center justify-center bg-[#0a0a0f]">
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto neon-glow-cyan" />
-          <p className="font-mono text-xs text-primary/60 mt-4 tracking-widest">INITIALIZING...</p>
+          <div className="w-10 h-10 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin mx-auto" />
+          <p className="text-violet-400/60 text-xs mt-4 tracking-widest font-mono">LOADING...</p>
         </div>
       </div>
     );
@@ -38,13 +39,13 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/projects" element={<Projects />} />
-        <Route path="/tasks" element={<Tasks />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
+      <Route path="/" element={<Home />} />
+      <Route path="/browse" element={<BrowsePage />} />
+      <Route path="/anime/:id" element={<AnimePage />} />
+      <Route path="/watch/:id" element={<WatchPage />} />
+      <Route path="/watchlist" element={<WatchlistPage />} />
+      <Route path="/schedule" element={<SchedulePage />} />
+      <Route path="/community" element={<CommunityPage />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

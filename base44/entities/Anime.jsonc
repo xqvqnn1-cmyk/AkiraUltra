@@ -1,0 +1,59 @@
+{
+  "name": "Anime",
+  "type": "object",
+  "properties": {
+    "mal_id": {
+      "type": "number",
+      "description": "MyAnimeList ID"
+    },
+    "title": {
+      "type": "string"
+    },
+    "title_japanese": {
+      "type": "string"
+    },
+    "synopsis": {
+      "type": "string"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "banner_url": {
+      "type": "string"
+    },
+    "trailer_url": {
+      "type": "string"
+    },
+    "episodes": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string"
+    },
+    "rating": {
+      "type": "string"
+    },
+    "score": {
+      "type": "number"
+    },
+    "genres": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "year": {
+      "type": "number"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "featured": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

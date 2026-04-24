@@ -1,0 +1,36 @@
+{
+  "name": "WatchlistItem",
+  "type": "object",
+  "properties": {
+    "anime_id": {
+      "type": "string"
+    },
+    "anime_title": {
+      "type": "string"
+    },
+    "anime_image": {
+      "type": "string"
+    },
+    "anime_slug": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "watching",
+        "completed",
+        "plan_to_watch",
+        "dropped"
+      ],
+      "default": "plan_to_watch"
+    },
+    "progress": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "anime_id",
+    "anime_title"
+  ]
+}
