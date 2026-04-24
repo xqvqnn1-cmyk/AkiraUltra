@@ -18,7 +18,7 @@ export default function SignInPage() {
     setLoading(true);
     setError('');
     try {
-      await base44.auth.sendVerificationCode(email.trim().toLowerCase());
+      await base44.auth.resendOtp(email.trim().toLowerCase());
       setStep('code');
     } catch (err) {
       setError(err.message || 'Failed to send code. Please try again.');
@@ -33,7 +33,7 @@ export default function SignInPage() {
     setLoading(true);
     setError('');
     try {
-      await base44.auth.verifyCode(email.trim().toLowerCase(), code.trim());
+      await base44.auth.verifyOtp({ email: email.trim().toLowerCase(), otpCode: code.trim() });
       window.location.href = nextUrl;
     } catch (err) {
       setError(err.message || 'Invalid code. Please try again.');
