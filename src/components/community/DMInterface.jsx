@@ -440,7 +440,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         const hasReactions = Object.keys(uniqueReactions).length > 0;
                         
                         return hasReactions && (
-                          <div className="flex flex-wrap gap-1.5 mt-2 w-full">
+                          <div className="flex flex-wrap gap-1.5 mt-2 w-full justify-end">
                             {Object.entries(uniqueReactions).map(([emoji, reacts]) => {
                               const userReacted = reacts.some(r => r.user_email === user?.email);
                               return (
