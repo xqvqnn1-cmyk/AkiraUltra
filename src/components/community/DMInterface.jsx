@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Phone, Video, Search, MoreVertical, Plus, Heart, Share2, X, Calendar, Link as Link2, MessageCircle, Smile, 
-  ThumbsUp, Laugh, Flame, Trophy, Heart as HeartIcon, Frown, Edit, Trash2, Reply
+  ThumbsUp, Laugh, Flame, Trophy, Heart as HeartIcon, Frown, Edit, Trash2, Reply, Check
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Avatar } from './UserProfilePopup.jsx';
@@ -38,6 +38,8 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   const [showReactionsFor, setShowReactionsFor] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [gifUrl, setGifUrl] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
   const menuRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -386,22 +388,67 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                           Replying to <span className="text-gray-300 font-semibold">{msg.reply_to_user}</span>
                         </div>
                       )}
-                      <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
+                      {editingId === msg.id ? (
+                        <div className="flex gap-2 items-start">
+                          <textarea
+                            autoFocus
+                            value={editText}
+                            onChange={e => setEditText(e.target.value)}
+                            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500/50 resize-none"
+                            rows={2}
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              onClick={async () => {
+                                await base44.entities.DirectMessage.update(msg.id, { content: editText, updated_at: new Date().toISOString() });
+                                queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
+                                setEditingId(null);
+                              }}
+                              className="p-1.5 rounded hover:bg-violet-600/30 text-violet-400 transition-colors"
+                              title="Save"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
+                          {msg.updated_at && msg.updated_at !== msg.created_date && (
+                            <p className="text-[10px] text-gray-600 mt-1">(edited)</p>
+                          )}
+                        </>
+                      )}
                       {msg.image_url && <img src={msg.image_url} alt="attachment" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
                       {msg.gif_url && <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
                       {/* Reactions */}
                       {msgReactions.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2 justify-end pr-2">
+                        <div className="flex flex-wrap gap-1 mt-2">
                           {Object.entries(msgReactions.reduce((acc, r) => {
                             acc[r.emoji] = acc[r.emoji] || [];
                             acc[r.emoji].push(r);
                             return acc;
-                          }, {})).map(([emoji, reacts]) => (
-                            <div key={emoji} title={reacts.map(r => r.user_email.split('@')[0]).join(', ')} className="px-2 py-1 bg-white/10 rounded-full text-xs flex items-center gap-1 hover:bg-white/20 cursor-pointer transition-colors">
-                              <span>{emoji}</span>
-                              <span className="text-gray-400 text-xs">{reacts.length}</span>
-                            </div>
-                          ))}
+                          }, {})).map(([emoji, reacts]) => {
+                            const userReacted = reacts.some(r => r.user_email === user?.email);
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={() => addReaction(msg.id, emoji)}
+                                title={reacts.map(r => r.user_email.split('@')[0]).join(', ')}
+                                className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 transition-colors ${userReacted ? 'bg-violet-600/30 border border-violet-500/50' : 'bg-white/10 hover:bg-white/20'}`}
+                              >
+                                <span>{emoji}</span>
+                                <span className={userReacted ? 'text-violet-300 text-xs' : 'text-gray-400 text-xs'}>{reacts.length}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                       {/* Reaction & action button */}
@@ -444,12 +491,9 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                         </button>
                         {isMine && (
                           <button
-                            onClick={async () => {
-                              const newContent = prompt('Edit message:', msg.content);
-                              if (newContent) {
-                                await base44.entities.DirectMessage.update(msg.id, { content: newContent, updated_at: new Date().toISOString() });
-                                queryClient.invalidateQueries({ queryKey: ['dm', user?.email, targetEmail] });
-                              }
+                            onClick={() => {
+                              setEditingId(msg.id);
+                              setEditText(msg.content);
                             }}
                             className="p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
                             title="Edit message"
