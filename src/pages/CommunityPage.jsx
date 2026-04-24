@@ -189,6 +189,8 @@ export default function CommunityPage() {
       queryClient.invalidateQueries({ queryKey: ['chat', activeChannel] });
       setInput('');
       setReplyingTo(null);
+      setImageUrl(null);
+      setGifUrl(null);
     },
   });
 
