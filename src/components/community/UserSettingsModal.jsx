@@ -34,7 +34,7 @@ const TABS = [
   { id: 'profile', label: 'My Account', icon: User },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'email', label: 'Email & Security', icon: Mail },
-  { id: 'privacy', label: 'Privacy', icon: MessageCircle },
+  { id: 'privacy', label: 'Privacy & Blocking', icon: MessageCircle },
 ];
 
 export default function UserSettingsModal({ onClose }) {
@@ -55,6 +55,7 @@ export default function UserSettingsModal({ onClose }) {
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [displayNameError, setDisplayNameError] = useState('');
+  const [blockedUsers, setBlockedUsers] = useState([]);
 
   const bannerInputRef = useRef(null);
   const appearanceBannerInputRef = useRef(null);
@@ -62,14 +63,24 @@ export default function UserSettingsModal({ onClose }) {
   useEffect(() => {
     if (!user) return;
     setDisplayName(user.full_name || user.email.split('@')[0]);
-    base44.entities.UserProfile.filter({ user_email: user.email }, null, 1).then(r => {
-      if (r[0]) {
-        setProfile(r[0]);
-        setBio(r[0].bio || '');
-        setBannerColor(r[0].banner_color || BANNER_COLORS[0]);
-        setDmEnabled(r[0].dm_enabled !== false);
+    Promise.all([
+      base44.entities.UserProfile.filter({ user_email: user.email }, null, 1),
+      base44.entities.BlockedUser.filter({ user_email: user.email }),
+    ]).then(([profiles, blocked]) => {
+      if (profiles[0]) {
+        setProfile(profiles[0]);
+        setBio(profiles[0].bio || '');
+        setBannerColor(profiles[0].banner_color || BANNER_COLORS[0]);
+        setDmEnabled(profiles[0].dm_enabled !== false);
       }
+      setBlockedUsers(blocked);
     });
+
+    const handleBlockChange = () => {
+      base44.entities.BlockedUser.filter({ user_email: user.email }).then(setBlockedUsers);
+    };
+    window.addEventListener('blockStatusChanged', handleBlockChange);
+    return () => window.removeEventListener('blockStatusChanged', handleBlockChange);
   }, [user]);
 
   const handleSave = async () => {
@@ -409,18 +420,47 @@ export default function UserSettingsModal({ onClose }) {
 
               {/* ── PRIVACY TAB ── */}
               {activeTab === 'privacy' && (
-                <div className="bg-[#1a1d23] rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Allow Direct Messages</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Let other users send you DMs</p>
+                <>
+                  <div className="bg-[#1a1d23] rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Allow Direct Messages</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Let other users send you DMs</p>
+                    </div>
+                    <button
+                      onClick={() => setDmEnabled(v => !v)}
+                      className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${dmEnabled ? 'bg-violet-600' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${dmEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setDmEnabled(v => !v)}
-                    className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${dmEnabled ? 'bg-violet-600' : 'bg-white/10'}`}
-                  >
-                    <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${dmEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-3">Blocked Users</h3>
+                    {blockedUsers.length === 0 ? (
+                      <p className="text-xs text-gray-600 italic">You haven't blocked anyone yet</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {blockedUsers.map(b => (
+                          <div key={b.id} className="flex items-center justify-between bg-[#1a1d23] rounded-lg px-3 py-2.5">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-white truncate font-medium">{b.blocked_name || b.blocked_email}</p>
+                              <p className="text-xs text-gray-600 capitalize">{b.reason}</p>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                await base44.entities.BlockedUser.delete(b.id);
+                                setBlockedUsers(prev => prev.filter(x => x.id !== b.id));
+                              }}
+                              className="ml-2 px-3 py-1 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 text-xs font-semibold rounded transition-colors flex-shrink-0"
+                            >
+                              Unblock
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
               </div>
 

@@ -28,12 +28,14 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   const [friendReqId, setFriendReqId] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const menuRef = useRef(null);
 
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Fetch profiles and friend status
+  // Fetch profiles, friend status, and block status
   useEffect(() => {
     if (!user?.email || !targetEmail) return;
     Promise.all([
@@ -41,7 +43,8 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
       base44.entities.UserProfile.filter({ user_email: targetEmail }, null, 1),
       base44.entities.FriendRequest.filter({ from_email: user.email, to_email: targetEmail }),
       base44.entities.FriendRequest.filter({ from_email: targetEmail, to_email: user.email }),
-    ]).then(([myProfiles, targetProfiles, sentReqs, receivedReqs]) => {
+      base44.entities.BlockedUser.filter({ user_email: user.email, blocked_email: targetEmail }),
+    ]).then(([myProfiles, targetProfiles, sentReqs, receivedReqs, blockedUsers]) => {
       setProfile(myProfiles[0] || null);
       setTargetProfile(targetProfiles[0] || null);
       
@@ -61,7 +64,24 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
       } else {
         setFriendStatus(null);
       }
+
+      if (blockedUsers[0]) {
+        setIsBlocked(blockedUsers[0].reason === 'block');
+        setIsMuted(blockedUsers[0].reason === 'mute');
+      } else {
+        setIsBlocked(false);
+        setIsMuted(false);
+      }
     });
+
+    const handleBlockUpdate = (e) => {
+      if (e.detail.blockedEmail === targetEmail) {
+        setIsBlocked(e.detail.isBlocked);
+        setIsMuted(e.detail.isMuted);
+      }
+    };
+    window.addEventListener('blockStatusChanged', handleBlockUpdate);
+    return () => window.removeEventListener('blockStatusChanged', handleBlockUpdate);
   }, [user?.email, targetEmail]);
 
   // Close menu on outside click
@@ -130,7 +150,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
 
   const handleSend = (e) => {
     e.preventDefault();
-    if (!input.trim() || sendMutation.isPending) return;
+    if (!input.trim() || sendMutation.isPending || isBlocked) return;
     sendMutation.mutate(input.trim());
   };
 
@@ -271,37 +291,43 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
 
       {/* Message Input */}
       <div className="px-4 pb-4 pt-2 flex-shrink-0 sticky bottom-0 bg-gradient-to-t from-[#0f1115] to-[#0f1115]/80">
-          <form onSubmit={handleSend} className="flex items-end gap-3">
-            <div className="flex-1 flex items-center gap-2 bg-[#1a1d23] rounded-xl px-4 py-3 border border-white/5 focus-within:border-violet-500/50 transition-colors">
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                placeholder={`Message ${displayName}...`}
-                className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(e);
-                  }
-                }}
-              />
-              <button type="button" className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-colors" title="Emoji">
-                <span className="text-lg">😊</span>
-              </button>
-              <button type="button" className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-colors" title="Attachment">
-                <Plus className="w-4 h-4" />
-              </button>
+          {isBlocked ? (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-center text-sm text-red-400">
+              You cannot message this user (blocked)
             </div>
-            <button
-              type="submit"
-              disabled={!input.trim() || sendMutation.isPending}
-              className="p-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 text-white transition-colors flex-shrink-0"
-              title="Send message"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
+          ) : (
+            <form onSubmit={handleSend} className="flex items-end gap-3">
+              <div className="flex-1 flex items-center gap-2 bg-[#1a1d23] rounded-xl px-4 py-3 border border-white/5 focus-within:border-violet-500/50 transition-colors">
+                <input
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder={`Message ${displayName}...`}
+                  className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend(e);
+                    }
+                  }}
+                />
+                <button type="button" className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-colors" title="Emoji">
+                  <span className="text-lg">😊</span>
+                </button>
+                <button type="button" className="p-1.5 rounded text-gray-500 hover:text-gray-300 transition-colors" title="Attachment">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={!input.trim() || sendMutation.isPending}
+                className="p-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 text-white transition-colors flex-shrink-0"
+                title="Send message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          )}
         </div>
       </div>
 
@@ -400,8 +426,42 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
               <AnimatePresence>
                 {showMenu && (
                   <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-0 top-full mt-1 w-48 bg-[#1a1d23] border border-white/10 rounded-lg shadow-lg z-50 overflow-hidden">
-                    <button onClick={() => { alert('User blocked'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors">Block User</button>
-                    <button onClick={() => { alert('Notifications muted'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors border-t border-white/5">Mute Notifications</button>
+                    <button 
+                      onClick={async () => { 
+                        if (isBlocked) {
+                          await base44.entities.BlockedUser.filter({ user_email: user.email, blocked_email: targetEmail }).then(r => {
+                            if (r[0]) base44.entities.BlockedUser.delete(r[0].id);
+                          });
+                          setIsBlocked(false);
+                        } else {
+                          await base44.entities.BlockedUser.create({ user_email: user.email, blocked_email: targetEmail, blocked_name: displayName, reason: 'block' });
+                          setIsBlocked(true);
+                        }
+                        window.dispatchEvent(new CustomEvent('blockStatusChanged', { detail: { blockedEmail: targetEmail, isBlocked: !isBlocked, isMuted: false } }));
+                        setShowMenu(false); 
+                      }} 
+                      className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors"
+                    >
+                      {isBlocked ? 'Unblock User' : 'Block User'}
+                    </button>
+                    <button 
+                      onClick={async () => { 
+                        if (isMuted) {
+                          await base44.entities.BlockedUser.filter({ user_email: user.email, blocked_email: targetEmail }).then(r => {
+                            if (r[0]) base44.entities.BlockedUser.delete(r[0].id);
+                          });
+                          setIsMuted(false);
+                        } else {
+                          await base44.entities.BlockedUser.create({ user_email: user.email, blocked_email: targetEmail, blocked_name: displayName, reason: 'mute' });
+                          setIsMuted(true);
+                        }
+                        window.dispatchEvent(new CustomEvent('blockStatusChanged', { detail: { blockedEmail: targetEmail, isBlocked: false, isMuted: !isMuted } }));
+                        setShowMenu(false); 
+                      }} 
+                      className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors border-t border-white/5"
+                    >
+                      {isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
+                    </button>
                     <button onClick={() => { alert('User reported'); setShowMenu(false); }} className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/5">Report User</button>
                   </motion.div>
                 )}
