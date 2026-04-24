@@ -1,0 +1,32 @@
+{
+  "name": "MessageReaction",
+  "type": "object",
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "description": "ID of the message being reacted to"
+    },
+    "message_type": {
+      "type": "string",
+      "enum": [
+        "chat",
+        "dm"
+      ],
+      "description": "Type of message (chat channel or direct message)"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of user who reacted"
+    },
+    "emoji": {
+      "type": "string",
+      "description": "Emoji reaction (single character)"
+    }
+  },
+  "required": [
+    "message_id",
+    "message_type",
+    "user_email",
+    "emoji"
+  ]
+}

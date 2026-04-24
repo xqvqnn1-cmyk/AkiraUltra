@@ -29,6 +29,22 @@
         "type": "string"
       },
       "description": "List of mentioned user emails"
+    },
+    "image_url": {
+      "type": "string",
+      "description": "Optional image URL attachment"
+    },
+    "gif_url": {
+      "type": "string",
+      "description": "Optional GIF URL attachment"
+    },
+    "reply_to_id": {
+      "type": "string",
+      "description": "ID of message this is replying to"
+    },
+    "reply_to_user": {
+      "type": "string",
+      "description": "Name of user being replied to"
     }
   },
   "required": [

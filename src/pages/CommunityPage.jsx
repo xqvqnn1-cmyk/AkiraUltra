@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Hash, Users, Bell, Settings, ChevronDown, Send,
-  Plus, Check, X, MessageCircle, AtSign, UserPlus, Tv, Search
+  Plus, Check, X, MessageCircle, AtSign, UserPlus, Tv, Search, Image
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
@@ -65,10 +65,13 @@ export default function CommunityPage() {
   const [showSelfPopup, setShowSelfPopup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const endRef = useRef(null);
   const inputRef = useRef(null);
   const notifsRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   /* ── Profiles ── */
   useEffect(() => {
@@ -139,15 +142,45 @@ export default function CommunityPage() {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
   const sendMutation = useMutation({
-    mutationFn: async (content) => {
-      const mentions = (content.match(/@(\w[\w\d_-]*)/g) || []).map(m => m.slice(1));
-      return base44.entities.ChatMessage.create({
-        content, channel: activeChannel,
+    mutationFn: async (payload) => {
+      const mentions = (payload.content.match(/@(\w[\w\d_-]*)/g) || []).map(m => m.slice(1));
+      const msg = await base44.entities.ChatMessage.create({
+        content: payload.content,
+        channel: activeChannel,
         user_name: user.full_name || user.email.split('@')[0],
-        user_email: user.email, mentions,
+        user_email: user.email,
+        mentions,
+        image_url: payload.image_url,
+        gif_url: payload.gif_url,
+        reply_to_id: payload.reply_to_id,
+        reply_to_user: payload.reply_to_user,
       });
+
+      // Create mention notifications
+      if (mentions.length > 0) {
+        const mentionedUsers = mentions.map(m => profiles.find(p => p.user_name?.toLowerCase() === m.toLowerCase())?.user_email).filter(Boolean);
+        await Promise.all(
+          mentionedUsers.map(email =>
+            base44.entities.Notification.create({
+              user_email: email,
+              type: 'mention',
+              title: 'You were mentioned',
+              body: `${user.full_name || user.email.split('@')[0]} mentioned you in #${activeChannel}`,
+              from_email: user.email,
+              from_name: user.full_name || user.email.split('@')[0],
+              read: false,
+            })
+          )
+        );
+      }
+
+      return msg;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['chat', activeChannel] }); setInput(''); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat', activeChannel] });
+      setInput('');
+      setReplyingTo(null);
+    },
   });
 
 
@@ -200,7 +233,33 @@ export default function CommunityPage() {
   const offlineProfiles = profiles.filter(p => p.status !== 'online' && p.status !== 'watching');
   const grouped = groupMessages(messages);
 
-  const handleSend = (e) => { e.preventDefault(); if (!input.trim() || !user || sendMutation.isPending) return; sendMutation.mutate(input.trim()); };
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (!input.trim() || !user || sendMutation.isPending) return;
+    sendMutation.mutate({
+      content: input.trim(),
+      image_url: null,
+      gif_url: null,
+      reply_to_id: replyingTo?.id,
+      reply_to_user: replyingTo?.user_name,
+    });
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !input.trim()) return;
+    setUploadingFile(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    setUploadingFile(false);
+    const isGif = file.type === 'image/gif';
+    sendMutation.mutate({
+      content: input.trim(),
+      image_url: isGif ? null : file_url,
+      gif_url: isGif ? file_url : null,
+      reply_to_id: replyingTo?.id,
+      reply_to_user: replyingTo?.user_name,
+    });
+  };
 
   const handleStatusChange = async (status) => {
     const ex = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
@@ -356,10 +415,23 @@ export default function CommunityPage() {
                   )}
                   {grouped.map(msg => (
                     <ChatMessage key={msg.id} msg={msg} currentUser={user} profiles={profiles}
-                      onMention={name => { setInput(v => v + `@${name} `); inputRef.current?.focus(); }} />
+                      onMention={name => { setInput(v => v + `@${name} `); inputRef.current?.focus(); }}
+                      onReply={msg => setReplyingTo(msg)} />
                   ))}
                   <div ref={endRef} />
                 </div>
+                {/* Reply preview */}
+                {replyingTo && (
+                  <div className="px-4 pt-2 flex items-center justify-between bg-white/5 rounded-t-xl border-b border-white/5">
+                    <div className="text-xs text-gray-400">
+                      Replying to <span className="text-white font-semibold">{replyingTo.user_name}</span>
+                    </div>
+                    <button onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Input */}
                 <div className="px-4 pb-4 pt-1 flex-shrink-0">
                   {user ? (
@@ -369,7 +441,11 @@ export default function CommunityPage() {
                           placeholder={`Message #${activeChannel}`}
                           className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
                           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }} />
-                        <button type="submit" disabled={!input.trim() || sendMutation.isPending} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
+                        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="text-gray-500 hover:text-white disabled:opacity-30 transition-colors flex-shrink-0">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <input ref={fileInputRef} type="file" accept="image/*,image/gif" className="hidden" onChange={handleFileUpload} />
+                        <button type="submit" disabled={!input.trim() || sendMutation.isPending || uploadingFile} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors flex-shrink-0">
                           <Send className="w-4 h-4" />
                         </button>
                       </div>
