@@ -13,8 +13,9 @@ import AnimePage from './pages/AnimePage';
 import WatchPage from './pages/WatchPage';
 import WatchlistPage from './pages/WatchlistPage';
 import SchedulePage from './pages/SchedulePage';
-import CommunityPage from './pages/CommunityPage';
-import UserSettingsPage from './pages/UserSettingsPage';
+import CommunityPage from './pages/CommunityPage.jsx';
+import UserSettingsPage from './pages/UserSettingsPage.jsx';
+
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
