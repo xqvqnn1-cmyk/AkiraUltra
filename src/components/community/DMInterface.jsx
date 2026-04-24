@@ -30,7 +30,10 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const menuRef = useRef(null);
+  const searchRef = useRef(null);
 
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -88,6 +91,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   useEffect(() => {
     const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+      if (searchRef.current && !searchRef.current.contains(e.target)) setSearchOpen(false);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -214,78 +218,113 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
       <div className="flex-1 flex flex-col min-w-0">
       {/* Top Bar */}
       <div className="h-14 bg-[#111318] border-b border-white/5 px-5 flex items-center justify-between flex-shrink-0 sticky top-0 z-20 shadow-sm">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="relative flex-shrink-0">
-              <Avatar name={displayName} email={targetEmail} avatarUrl={targetProfile?.avatar_url} size="sm" />
-              <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#111318] ${STATUS_COLORS[targetProfile?.status || 'offline']}`} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-              <p className="text-xs text-gray-500 capitalize">{targetProfile?.status || 'offline'}</p>
-            </div>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative flex-shrink-0">
+            <Avatar name={displayName} email={targetEmail} avatarUrl={targetProfile?.avatar_url} size="sm" />
+            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#111318] ${STATUS_COLORS[targetProfile?.status || 'offline']}`} />
           </div>
-
-          <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Voice call">
-              <Phone className="w-4 h-4" />
-            </button>
-            <button className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Video call">
-              <Video className="w-4 h-4" />
-            </button>
-            <button className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Search">
-              <Search className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors md:hidden"
-              title="Toggle sidebar"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+            <p className="text-xs text-gray-500 capitalize">{targetProfile?.status || 'offline'}</p>
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+          <button className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Voice call">
+            <Phone className="w-4 h-4" />
+          </button>
+          <button className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors" title="Video call">
+            <Video className="w-4 h-4" />
+          </button>
+          <div ref={searchRef} className="relative">
+            <button 
+              onClick={() => setSearchOpen(!searchOpen)}
+              className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors" 
+              title="Search messages"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <AnimatePresence>
+              {searchOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="absolute right-0 top-full mt-2 w-64 bg-[#1a1d23] border border-white/10 rounded-lg shadow-lg z-50"
+                >
+                  <input
+                    autoFocus
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search messages..."
+                    className="w-full bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none px-3 py-2.5 border-b border-white/5"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors md:hidden"
+            title="Toggle sidebar"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1 scrollbar-hide">
-          {messages.length === 0 ? (
-            // Empty State
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="ring-4 ring-white/10 rounded-full mb-4 inline-block">
-                <Avatar name={displayName} email={targetEmail} avatarUrl={targetProfile?.avatar_url} size="xl" />
-              </div>
-              <p className="text-white font-bold text-lg mb-2">{displayName}</p>
-              <p className="text-gray-500 text-sm text-center max-w-xs">
-                This is the beginning of your direct message history with <span className="text-gray-300 font-semibold">{displayName}</span>
-              </p>
-            </div>
-          ) : (
-            messages.map((msg, i) => {
-              const isMine = msg.from_email === user.email;
-              const prev = messages[i - 1];
-              const grouped = prev && prev.from_email === msg.from_email && new Date(msg.created_date) - new Date(prev.created_date) < 5 * 60 * 1000;
-              const senderProfile = isMine ? profile : targetProfile;
-              const senderName = isMine ? (user.full_name || user.email.split('@')[0]) : displayName;
+          {(() => {
+            const filteredMessages = searchQuery.trim() 
+              ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+              : messages;
+            
+            return filteredMessages.length === 0 ? (
+              searchQuery.trim() ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <p className="text-gray-500 text-sm text-center">No messages match "<span className="text-gray-300 font-semibold">{searchQuery}</span>"</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <div className="ring-4 ring-white/10 rounded-full mb-4 inline-block">
+                    <Avatar name={displayName} email={targetEmail} avatarUrl={targetProfile?.avatar_url} size="xl" />
+                  </div>
+                  <p className="text-white font-bold text-lg mb-2">{displayName}</p>
+                  <p className="text-gray-500 text-sm text-center max-w-xs">
+                    This is the beginning of your direct message history with <span className="text-gray-300 font-semibold">{displayName}</span>
+                  </p>
+                </div>
+              )
+            ) : (
+              filteredMessages.map((msg, i) => {
+                const isMine = msg.from_email === user.email;
+                const prev = filteredMessages[i - 1];
+                const grouped = prev && prev.from_email === msg.from_email && new Date(msg.created_date) - new Date(prev.created_date) < 5 * 60 * 1000;
+                const senderProfile = isMine ? profile : targetProfile;
+                const senderName = isMine ? (user.full_name || user.email.split('@')[0]) : displayName;
 
-              return (
-                <div key={msg.id} className={`flex items-start gap-3 group hover:bg-white/[0.02] px-2 py-0.5 rounded-lg ${grouped ? 'pl-14' : ''}`}>
-                  {!grouped && (
-                    <div className="flex-shrink-0 mt-0.5">
-                      <Avatar name={senderName} email={msg.from_email} avatarUrl={senderProfile?.avatar_url} size="md" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
+                return (
+                  <div key={msg.id} className={`flex items-start gap-3 group hover:bg-white/[0.02] px-2 py-0.5 rounded-lg ${grouped ? 'pl-14' : ''}`}>
                     {!grouped && (
-                      <div className="flex items-baseline gap-2 mb-0.5">
-                        <span className="font-semibold text-sm text-white">{senderName}</span>
-                        <span className="text-gray-600 text-[10px]">{format(new Date(msg.created_date), 'MMM d, h:mm a')}</span>
+                      <div className="flex-shrink-0 mt-0.5">
+                        <Avatar name={senderName} email={msg.from_email} avatarUrl={senderProfile?.avatar_url} size="md" />
                       </div>
                     )}
-                    <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
+                    <div className="flex-1 min-w-0">
+                      {!grouped && (
+                        <div className="flex items-baseline gap-2 mb-0.5">
+                          <span className="font-semibold text-sm text-white">{senderName}</span>
+                          <span className="text-gray-600 text-[10px]">{format(new Date(msg.created_date), 'MMM d, h:mm a')}</span>
+                        </div>
+                      )}
+                      <p className="text-gray-300 text-sm leading-relaxed break-words">{msg.content}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            );
+          })()}
           <div ref={chatEndRef} />
         </div>
 
