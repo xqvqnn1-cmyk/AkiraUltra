@@ -83,7 +83,7 @@ export default function CommunityPage() {
   /* ── Profiles ── */
   useEffect(() => {
     base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {});
-    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {}), 300000);
+    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {}), 600000);
     return () => clearInterval(iv);
   }, []);
 
@@ -142,7 +142,7 @@ export default function CommunityPage() {
   const { data: messages = [] } = useQuery({
     queryKey: ['chat', activeChannel],
     queryFn: () => base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 80),
-    refetchInterval: 120000,
+    refetchInterval: 180000,
     enabled: view === 'channel',
   });
 
@@ -150,7 +150,7 @@ export default function CommunityPage() {
   const { data: reactions = [] } = useQuery({
     queryKey: ['chatReactions', activeChannel],
     queryFn: () => base44.entities.MessageReaction.filter({ message_type: 'chat' }, null, 200),
-    refetchInterval: 180000,
+    refetchInterval: 240000,
   });
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
@@ -207,7 +207,7 @@ export default function CommunityPage() {
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.email],
     queryFn: () => base44.entities.Notification.filter({ user_email: user.email }, '-created_date', 30),
-    enabled: !!user, refetchInterval: 300000,
+    enabled: !!user, refetchInterval: 360000,
   });
   const unreadCount = notifications.filter(n => !n.read).length;
   const markRead = async (id) => { await base44.entities.Notification.update(id, { read: true }); queryClient.invalidateQueries({ queryKey: ['notifications', user?.email] }); };
@@ -224,7 +224,7 @@ export default function CommunityPage() {
       ]);
       return [...sent, ...received];
     },
-    enabled: !!user, refetchInterval: 300000,
+    enabled: !!user, refetchInterval: 360000,
   });
 
   const acceptFriend = async (req) => {

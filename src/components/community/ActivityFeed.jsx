@@ -17,87 +17,10 @@ export default function ActivityFeed() {
   const [prevProfiles, setPrevProfiles] = useState(new Map());
 
   useEffect(() => {
-    // Initial load
-    base44.entities.UserProfile.list('-updated_date', 50)
-      .then(profiles => {
-        setPrevProfiles(new Map(profiles.map(p => [p.user_email, p])));
-      })
-      .catch(() => {});
-
-    // Subscribe to real-time updates
-    const unsubscribe = base44.entities.UserProfile.subscribe((event) => {
-      if (event.type !== 'update') return;
-
-      const newProfile = event.data;
-      const oldProfile = prevProfiles.get(newProfile.user_email);
-      const displayName = newProfile.user_name || newProfile.user_email.split('@')[0];
-
-      const newActivities = [];
-
-      // Status change
-      if (oldProfile?.status !== newProfile.status) {
-        let message = '';
-        if (newProfile.status === 'online') message = 'came online';
-        else if (newProfile.status === 'watching') message = 'started watching anime';
-        else if (newProfile.status === 'idle') message = 'went idle';
-        else if (newProfile.status === 'offline') message = 'went offline';
-
-        if (message && newProfile.status !== 'offline') {
-          newActivities.push({
-            id: `${newProfile.user_email}-${newProfile.status}-${Date.now()}`,
-            type: 'status',
-            displayName,
-            email: newProfile.user_email,
-            avatar: newProfile.avatar_url,
-            message,
-            icon: newProfile.status === 'watching' ? <Tv className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />,
-            color: newProfile.status === 'watching' ? 'text-violet-400' : 'text-green-400',
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
-
-      // Watching status change
-      if (newProfile.status === 'watching' && oldProfile?.currently_watching !== newProfile.currently_watching) {
-        newActivities.push({
-          id: `${newProfile.user_email}-watching-${Date.now()}`,
-          type: 'watching',
-          displayName,
-          email: newProfile.user_email,
-          avatar: newProfile.avatar_url,
-          message: `is watching ${newProfile.currently_watching || 'something'}`,
-          icon: <Tv className="w-3.5 h-3.5" />,
-          color: 'text-violet-400',
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // Activity/last_active change
-      if (oldProfile?.last_active !== newProfile.last_active && newProfile.status !== 'offline') {
-        newActivities.push({
-          id: `${newProfile.user_email}-active-${Date.now()}`,
-          type: 'active',
-          displayName,
-          email: newProfile.user_email,
-          avatar: newProfile.avatar_url,
-          message: 'is active',
-          icon: <Activity className="w-3.5 h-3.5" />,
-          color: 'text-blue-400',
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // Add activities and remove old ones (keep last 10)
-      if (newActivities.length > 0) {
-        setActivities(prev => [...newActivities, ...prev].slice(0, 10));
-      }
-
-      // Update prev profiles
-      setPrevProfiles(prev => new Map(prev).set(newProfile.user_email, newProfile));
-    });
-
-    return unsubscribe;
-  }, [prevProfiles]);
+    // Don't load activities - just show placeholder
+    // Prevents unnecessary API calls during modal renders
+    setActivities([]);
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-[#0f1115] rounded-xl border border-white/5 overflow-hidden">
