@@ -206,7 +206,7 @@ export default function CommunityPage() {
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.email],
     queryFn: () => base44.entities.Notification.filter({ user_email: user.email }, '-created_date', 30),
-    enabled: !!user, refetchInterval: 60000,
+    enabled: !!user, refetchInterval: 90000,
   });
   const unreadCount = notifications.filter(n => !n.read).length;
   const markRead = async (id) => { await base44.entities.Notification.update(id, { read: true }); queryClient.invalidateQueries({ queryKey: ['notifications', user?.email] }); };
@@ -223,7 +223,7 @@ export default function CommunityPage() {
       ]);
       return [...sent, ...received];
     },
-    enabled: !!user, refetchInterval: 60000,
+    enabled: !!user, refetchInterval: 90000,
   });
 
   const acceptFriend = async (req) => {
@@ -657,7 +657,7 @@ function MemberItem({ profile, currentUser, onDM }) {
   const isSelf = currentUser?.email === profile.user_email;
   const isTyping = profile.is_typing;
   return (
-    <div className="flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-white/5 cursor-pointer group transition-colors" onClick={!isSelf ? onDM : undefined}>
+    <button onClick={!isSelf ? onDM : undefined} className="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-white/5 cursor-pointer group transition-colors text-left bg-transparent border-0" type="button">
       <div className="relative flex-shrink-0">
         <Avatar name={name} email={profile.user_email} avatarUrl={profile.avatar_url} size="sm" />
         <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111118] ${STATUS_COLORS[profile.status || 'offline']}`} />
@@ -670,7 +670,7 @@ function MemberItem({ profile, currentUser, onDM }) {
           <LastActiveTime lastActive={profile.last_active} status={profile.status} />
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
