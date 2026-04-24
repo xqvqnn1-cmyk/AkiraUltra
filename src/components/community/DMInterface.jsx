@@ -437,9 +437,9 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                           return acc;
                         }, {});
                         const hasReactions = Object.keys(uniqueReactions).length > 0;
-                        
+
                         return hasReactions && (
-                          <div className="flex flex-wrap gap-1.5 mt-2 w-full justify-end">
+                          <div className="flex flex-wrap gap-1 mt-2">
                             {Object.entries(uniqueReactions).map(([emoji, reacts]) => {
                               const userReacted = reacts.some(r => r.user_email === user?.email);
                               return (
@@ -447,7 +447,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                                   key={`${msg.id}-${emoji}`}
                                   onClick={() => addReaction(msg.id, emoji)}
                                   title={reacts.map(r => r.user_email.split('@')[0]).join(', ')}
-                                  className={`px-2 py-1 rounded-full text-xs flex items-center gap-1.5 transition-colors flex-shrink-0 ${userReacted ? 'bg-violet-600/30 border border-violet-500/50' : 'bg-white/10 hover:bg-white/20'}`}
+                                  className={`px-2 py-1 rounded-full text-xs flex items-center gap-1.5 transition-colors ${userReacted ? 'bg-violet-600/30 border border-violet-500/50' : 'bg-white/10 hover:bg-white/20'}`}
                                 >
                                   <span>{emoji}</span>
                                   <span className={userReacted ? 'text-violet-300' : 'text-gray-400'}>{reacts.length}</span>
