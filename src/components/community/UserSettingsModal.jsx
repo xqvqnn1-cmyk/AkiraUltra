@@ -50,6 +50,7 @@ export default function UserSettingsModal({ onClose }) {
   const [uploadingBanner, setUploadingBanner] = useState(false);
 
   const bannerInputRef = useRef(null);
+  const appearanceBannerInputRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -280,14 +281,18 @@ export default function UserSettingsModal({ onClose }) {
                     <ImagePlus className="w-5 h-5 text-violet-400 flex-shrink-0" />
                     <div className="flex-1">
                       <p className="text-sm text-white font-semibold">Upload Banner Picture</p>
-                      <p className="text-xs text-gray-500">Set a custom profile banner image</p>
+                      <p className="text-xs text-gray-500">
+                        {uploadingBanner ? 'Uploading...' : profile?.banner_url ? 'Banner set — click to change' : 'Set a custom profile banner image'}
+                      </p>
                     </div>
                     <button
-                      onClick={() => bannerInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#2a2d35] hover:bg-white/10 border border-white/10 transition-all flex-shrink-0"
+                      onClick={() => appearanceBannerInputRef.current?.click()}
+                      disabled={uploadingBanner}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#2a2d35] hover:bg-white/10 border border-white/10 transition-all flex-shrink-0 disabled:opacity-50"
                     >
-                      Upload
+                      {uploadingBanner ? '...' : 'Upload'}
                     </button>
+                    <input ref={appearanceBannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
                   </div>
                 </>
               )}
