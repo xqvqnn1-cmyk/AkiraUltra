@@ -203,14 +203,13 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   const addReaction = async (msgId, emoji) => {
     const existingReaction = reactions.find(r => r.message_id === msgId && r.user_email === user?.email && r.emoji === emoji);
     if (existingReaction) {
-      // Remove reaction if user already reacted with this emoji
       await base44.entities.MessageReaction.delete(existingReaction.id);
-      queryClient.invalidateQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
+      await queryClient.refetchQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
       return;
     }
     
     const reactionCount = reactions.filter(r => r.message_id === msgId && r.emoji === emoji).length;
-    if (reactionCount >= 4) return; // Limit 4 reactions per emoji
+    if (reactionCount >= 4) return;
     
     await base44.entities.MessageReaction.create({
       message_id: msgId,
@@ -218,7 +217,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
       user_email: user?.email,
       emoji,
     });
-    queryClient.invalidateQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
+    await queryClient.refetchQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
   };
 
   const sendFriendRequest = async () => {
