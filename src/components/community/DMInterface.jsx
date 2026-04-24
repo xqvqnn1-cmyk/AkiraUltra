@@ -391,7 +391,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
                       {msg.gif_url && <img src={msg.gif_url} alt="gif" className="mt-2 max-w-xs rounded-lg max-h-48 object-cover" />}
                       {/* Reactions */}
                       {msgReactions.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
+                        <div className="flex flex-wrap gap-1 mt-2 justify-end pr-2">
                           {Object.entries(msgReactions.reduce((acc, r) => {
                             acc[r.emoji] = acc[r.emoji] || [];
                             acc[r.emoji].push(r);
