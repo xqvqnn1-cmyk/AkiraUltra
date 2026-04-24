@@ -23,21 +23,53 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
   const [showSidebar, setShowSidebar] = useState(true);
   const [profile, setProfile] = useState(null);
   const [targetProfile, setTargetProfile] = useState(null);
+  const [friendStatus, setFriendStatus] = useState(null);
+  const [friendReqId, setFriendReqId] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
 
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Fetch profiles
+  // Fetch profiles and friend status
   useEffect(() => {
     if (!user?.email || !targetEmail) return;
     Promise.all([
       base44.entities.UserProfile.filter({ user_email: user.email }, null, 1),
       base44.entities.UserProfile.filter({ user_email: targetEmail }, null, 1),
-    ]).then(([myProfiles, targetProfiles]) => {
+      base44.entities.FriendRequest.filter({ from_email: user.email, to_email: targetEmail }),
+      base44.entities.FriendRequest.filter({ from_email: targetEmail, to_email: user.email }),
+    ]).then(([myProfiles, targetProfiles, sentReqs, receivedReqs]) => {
       setProfile(myProfiles[0] || null);
       setTargetProfile(targetProfiles[0] || null);
+      
+      const accepted = [...sentReqs, ...receivedReqs].find(r => r.status === 'accepted');
+      const pendingSent = sentReqs.find(r => r.status === 'pending');
+      const pendingReceived = receivedReqs.find(r => r.status === 'pending');
+      
+      if (accepted) {
+        setFriendStatus('friends');
+        setFriendReqId(accepted.id);
+      } else if (pendingSent) {
+        setFriendStatus('pending_sent');
+        setFriendReqId(pendingSent.id);
+      } else if (pendingReceived) {
+        setFriendStatus('pending_received');
+        setFriendReqId(pendingReceived.id);
+      } else {
+        setFriendStatus(null);
+      }
     });
   }, [user?.email, targetEmail]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   // Fetch DM messages
   const { data: messages = [] } = useQuery({
@@ -98,6 +130,41 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
     e.preventDefault();
     if (!input.trim() || sendMutation.isPending) return;
     sendMutation.mutate(input.trim());
+  };
+
+  const sendFriendRequest = async () => {
+    const req = await base44.entities.FriendRequest.create({
+      from_email: user.email,
+      from_name: user.full_name || user.email.split('@')[0],
+      to_email: targetEmail,
+      status: 'pending',
+    });
+    await base44.entities.Notification.create({
+      user_email: targetEmail,
+      type: 'friend_request',
+      title: 'Friend Request',
+      body: `${user.full_name || user.email.split('@')[0]} sent you a friend request`,
+      from_email: user.email,
+      from_name: user.full_name || user.email.split('@')[0],
+      read: false,
+    });
+    setFriendStatus('pending_sent');
+    setFriendReqId(req.id);
+  };
+
+  const acceptFriend = async () => {
+    if (!friendReqId) return;
+    await base44.entities.FriendRequest.update(friendReqId, { status: 'accepted' });
+    await base44.entities.Notification.create({
+      user_email: targetEmail,
+      type: 'friend_accepted',
+      title: 'Friend Request Accepted',
+      body: `${user.full_name || user.email.split('@')[0]} accepted your friend request`,
+      from_email: user.email,
+      from_name: user.full_name || user.email.split('@')[0],
+      read: false,
+    });
+    setFriendStatus('friends');
   };
 
   const displayName = targetName || targetEmail?.split('@')[0] || 'User';
@@ -283,12 +350,37 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
         {/* Actions */}
         <div className="h-px bg-white/5" />
         <div className="flex gap-2">
-          <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 text-xs font-semibold transition-colors">
-            <Heart className="w-3.5 h-3.5" /> Add Friend
-          </button>
-          <button className="flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 transition-colors" title="More">
-            <MoreVertical className="w-4 h-4" />
-          </button>
+          {friendStatus === 'friends' ? (
+            <div className="flex-1 flex items-center justify-center gap-1.5 text-green-400 text-xs font-semibold py-2 rounded-lg bg-green-400/10 border border-green-400/20">
+              <Heart className="w-3.5 h-3.5" /> Friends
+            </div>
+          ) : friendStatus === 'pending_sent' ? (
+            <div className="flex-1 flex items-center justify-center gap-1.5 text-yellow-400 text-xs font-semibold py-2 rounded-lg bg-yellow-400/10 border border-yellow-400/20">
+              ⏳ Request Sent
+            </div>
+          ) : friendStatus === 'pending_received' ? (
+            <button onClick={acceptFriend} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-colors">
+              <Heart className="w-3.5 h-3.5" /> Accept
+            </button>
+          ) : (
+            <button onClick={sendFriendRequest} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 text-xs font-semibold transition-colors">
+              <Heart className="w-3.5 h-3.5" /> Add Friend
+            </button>
+          )}
+          <div className="relative" ref={menuRef}>
+            <button onClick={() => setShowMenu(!showMenu)} className="flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 transition-colors" title="More options">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-0 top-full mt-1 w-48 bg-[#1a1d23] border border-white/10 rounded-lg shadow-lg z-50 overflow-hidden">
+                  <button className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors">Block User</button>
+                  <button className="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-white/5 transition-colors border-t border-white/5">Mute Notifications</button>
+                  <button className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/5">Report User</button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
         </div>
       </div>
