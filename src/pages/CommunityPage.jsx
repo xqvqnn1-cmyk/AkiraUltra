@@ -82,7 +82,7 @@ export default function CommunityPage() {
   /* ── Profiles ── */
   useEffect(() => {
     base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {});
-    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {}), 45000);
+    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles).catch(() => {}), 60000);
     return () => clearInterval(iv);
   }, []);
 
@@ -141,7 +141,7 @@ export default function CommunityPage() {
   const { data: messages = [] } = useQuery({
     queryKey: ['chat', activeChannel],
     queryFn: () => base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 80),
-    refetchInterval: 12000,
+    refetchInterval: 30000,
     enabled: view === 'channel',
   });
 
@@ -149,7 +149,7 @@ export default function CommunityPage() {
   const { data: reactions = [] } = useQuery({
     queryKey: ['chatReactions', activeChannel],
     queryFn: () => base44.entities.MessageReaction.filter({ message_type: 'chat' }, null, 200),
-    refetchInterval: 15000,
+    refetchInterval: 45000,
   });
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
@@ -172,7 +172,7 @@ export default function CommunityPage() {
       // Create mention notifications
       if (mentions.length > 0) {
         const mentionedUsers = mentions.map(m => profiles.find(p => p.user_name?.toLowerCase() === m.toLowerCase())?.user_email).filter(Boolean);
-        await Promise.all(
+        Promise.all(
           mentionedUsers.map(email =>
             base44.entities.Notification.create({
               user_email: email,
@@ -182,7 +182,7 @@ export default function CommunityPage() {
               from_email: user.email,
               from_name: user.full_name || user.email.split('@')[0],
               read: false,
-            })
+            }).catch(() => {})
           )
         );
       }
@@ -228,7 +228,7 @@ export default function CommunityPage() {
 
   const acceptFriend = async (req) => {
     await base44.entities.FriendRequest.update(req.id, { status: 'accepted' });
-    await base44.entities.Notification.create({ user_email: req.from_email, type: 'friend_accepted', title: 'Friend Request Accepted', body: `${user.full_name || user.email.split('@')[0]} accepted your friend request`, from_email: user.email, from_name: user.full_name || user.email.split('@')[0], read: false });
+    base44.entities.Notification.create({ user_email: req.from_email, type: 'friend_accepted', title: 'Friend Request Accepted', body: `${user.full_name || user.email.split('@')[0]} accepted your friend request`, from_email: user.email, from_name: user.full_name || user.email.split('@')[0], read: false }).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ['friends', user?.email] });
   };
   const declineFriend = async (req) => { await base44.entities.FriendRequest.update(req.id, { status: 'declined' }); queryClient.invalidateQueries({ queryKey: ['friends', user?.email] }); };
