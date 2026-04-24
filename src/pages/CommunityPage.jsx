@@ -9,6 +9,7 @@ import ChatMessage from '../components/community/ChatMessage.jsx';
 import NotificationPanel from '../components/community/NotificationPanel.jsx';
 import DMPanel from '../components/community/DMPanel.jsx';
 import { Avatar, StatusDot } from '../components/community/UserProfilePopup.jsx';
+import UserProfilePopup from '../components/community/UserProfilePopup.jsx';
 
 const CHANNELS = [
   { id: 'general', label: 'general', desc: 'General anime talk' },
@@ -25,6 +26,7 @@ export default function CommunityPage() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showFriendRequests, setShowFriendRequests] = useState(false);
   const [dmTarget, setDmTarget] = useState(null); // { email, name }
+  const [profileTarget, setProfileTarget] = useState(null); // { email, name, anchorEl }
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -305,8 +307,8 @@ export default function CommunityPage() {
             {onlineUsers.map(u => (
               <button
                 key={u.id}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left"
-                onClick={() => { if (user && u.user_email !== user.email) setDmTarget({ email: u.user_email, name: u.user_name || u.user_email.split('@')[0] }); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left relative"
+                onClick={() => setProfileTarget({ email: u.user_email, name: u.user_name || u.user_email.split('@')[0] })}
               >
                 <div className="relative flex-shrink-0">
                   <Avatar name={u.user_name} email={u.user_email} avatarUrl={u.avatar_url} size="sm" />
@@ -328,7 +330,10 @@ export default function CommunityPage() {
 
           {/* Own user bar */}
           {user && (
-            <div className="p-3 border-t border-white/5 flex items-center gap-2">
+            <button
+              onClick={() => setProfileTarget({ email: user.email, name: user.full_name || user.email.split('@')[0] })}
+              className="p-3 border-t border-white/5 flex items-center gap-2 hover:bg-white/5 transition-colors w-full text-left"
+            >
               <div className="relative">
                 <Avatar name={user.full_name} email={user.email} avatarUrl={allProfiles.find(p => p.user_email === user.email)?.avatar_url} size="sm" />
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-[#0d0d14]" />
@@ -337,7 +342,7 @@ export default function CommunityPage() {
                 <p className="text-xs font-semibold text-white truncate">{user.full_name || user.email.split('@')[0]}</p>
                 <p className="text-[10px] text-green-400 truncate">● Online</p>
               </div>
-            </div>
+            </button>
           )}
         </div>
 
@@ -446,7 +451,7 @@ export default function CommunityPage() {
                   {group.map(u => (
                     <button
                       key={u.id}
-                      onClick={() => { if (user && u.user_email !== user.email) setDmTarget({ email: u.user_email, name: u.user_name || u.user_email.split('@')[0] }); }}
+                      onClick={() => setProfileTarget({ email: u.user_email, name: u.user_name || u.user_email.split('@')[0] })}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left group"
                     >
                       <div className="relative">
@@ -467,6 +472,24 @@ export default function CommunityPage() {
           </div>
         </div>
       </div>
+
+      {/* Profile Popup (floating, centered) */}
+      <AnimatePresence>
+        {profileTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setProfileTarget(null)}>
+            <div onClick={e => e.stopPropagation()} className="relative">
+              <UserProfilePopup
+                userEmail={profileTarget.email}
+                userName={profileTarget.name}
+                anchorRef={{ current: null }}
+                onClose={() => setProfileTarget(null)}
+                onDM={(email, name) => { setDmTarget({ email, name }); setProfileTarget(null); }}
+                modal={true}
+              />
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* DM Panel */}
       <AnimatePresence>

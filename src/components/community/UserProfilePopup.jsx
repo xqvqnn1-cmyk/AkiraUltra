@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tv, MessageCircle, UserPlus, UserCheck, Clock, X, Camera, Edit2, Check } from 'lucide-react';
+import { Tv, MessageCircle, UserPlus, UserCheck, Clock, X, Camera, Edit2, Check, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 const AVATAR_COLORS = [
   'from-violet-600 to-pink-600',
@@ -49,10 +50,28 @@ export function StatusDot({ status, border = 'border-[#0d0d14]' }) {
   return <span className={`w-3 h-3 rounded-full border-2 ${border} ${colors[status] || 'bg-gray-600'}`} />;
 }
 
-export default function UserProfilePopup({ userEmail, userName, anchorRef, onClose, onDM }) {
+const BANNER_GRADIENT_MAP = {
+  'from-violet-600 to-purple-800': 'linear-gradient(to right, #7c3aed, #6b21a8)',
+  'from-cyan-500 to-blue-700': 'linear-gradient(to right, #06b6d4, #1d4ed8)',
+  'from-pink-500 to-rose-700': 'linear-gradient(to right, #ec4899, #be123c)',
+  'from-orange-500 to-red-700': 'linear-gradient(to right, #f97316, #b91c1c)',
+  'from-green-500 to-teal-700': 'linear-gradient(to right, #22c55e, #0f766e)',
+  'from-yellow-500 to-orange-600': 'linear-gradient(to right, #eab308, #ea580c)',
+  'from-indigo-500 to-violet-700': 'linear-gradient(to right, #6366f1, #7e22ce)',
+  'from-fuchsia-500 to-pink-700': 'linear-gradient(to right, #d946ef, #be185d)',
+};
+
+function getBannerStyle(profile) {
+  if (profile?.banner_url) return { backgroundImage: `url(${profile.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+  const color = getAvatarColor(profile?.user_email);
+  const gradient = BANNER_GRADIENT_MAP[profile?.banner_color] || BANNER_GRADIENT_MAP[color] || 'linear-gradient(to right, #7c3aed, #6b21a8)';
+  return { background: gradient };
+}
+
+export default function UserProfilePopup({ userEmail, userName, anchorRef, onClose, onDM, modal = false }) {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [friendStatus, setFriendStatus] = useState(null);
+  const [friendStatus, setFriendStatus] = useState(null); // null | 'friends' | 'pending_sent' | 'pending_received'
   const [friendReqId, setFriendReqId] = useState(null);
   const [editingBio, setEditingBio] = useState(false);
   const [bioInput, setBioInput] = useState('');
@@ -63,6 +82,7 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
   const isSelf = user?.email === userEmail;
 
   useEffect(() => {
+    if (modal) return; // modal mode: parent backdrop handles closing
     const handleClick = (e) => {
       if (popupRef.current && !popupRef.current.contains(e.target) &&
           anchorRef?.current && !anchorRef.current.contains(e.target)) {
@@ -71,7 +91,7 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [onClose, anchorRef]);
+  }, [onClose, anchorRef, modal]);
 
   useEffect(() => {
     if (!userEmail) return;
@@ -84,12 +104,17 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
         base44.entities.FriendRequest.filter({ from_email: user.email, to_email: userEmail }),
         base44.entities.FriendRequest.filter({ from_email: userEmail, to_email: user.email }),
       ]).then(([sent, received]) => {
-        if (sent.length > 0) {
-          setFriendStatus(sent[0].status === 'accepted' ? 'friends' : 'pending_sent');
-          setFriendReqId(sent[0].id);
-        } else if (received.length > 0) {
-          setFriendStatus(received[0].status === 'accepted' ? 'friends' : 'pending_received');
-          setFriendReqId(received[0].id);
+        const acceptedSent = sent.find(r => r.status === 'accepted');
+        const acceptedReceived = received.find(r => r.status === 'accepted');
+        if (acceptedSent || acceptedReceived) {
+          setFriendStatus('friends');
+          setFriendReqId((acceptedSent || acceptedReceived).id);
+        } else {
+          const pendingSent = sent.find(r => r.status === 'pending');
+          const pendingReceived = received.find(r => r.status === 'pending');
+          if (pendingSent) { setFriendStatus('pending_sent'); setFriendReqId(pendingSent.id); }
+          else if (pendingReceived) { setFriendStatus('pending_received'); setFriendReqId(pendingReceived.id); }
+          else { setFriendStatus(null); }
         }
       });
     }
@@ -110,7 +135,7 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
 
   const saveBio = async () => {
     if (!profile) return;
-    const updated = await base44.entities.UserProfile.update(profile.id, { bio: bioInput });
+    await base44.entities.UserProfile.update(profile.id, { bio: bioInput });
     setProfile(prev => ({ ...prev, bio: bioInput }));
     setEditingBio(false);
   };
@@ -123,12 +148,12 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
     await base44.entities.UserProfile.update(profile.id, { avatar_url: file_url });
     setProfile(prev => ({ ...prev, avatar_url: file_url }));
     setUploadingAvatar(false);
-    // Notify global to refresh
     window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { email: user.email, avatarUrl: file_url } }));
   };
 
   const displayName = profile?.user_name || userName || userEmail?.split('@')[0] || 'Unknown';
   const joinedDate = profile?.created_date ? format(new Date(profile.created_date), 'MMM yyyy') : null;
+  const dmAllowed = profile?.dm_enabled !== false;
 
   return (
     <motion.div
@@ -137,15 +162,15 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.92, y: 8 }}
       transition={{ duration: 0.15 }}
-      className="absolute z-50 w-72 bg-[#111118] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-      style={{ top: '100%', left: 0, marginTop: 8 }}
+      className={`${modal ? 'relative' : 'absolute'} z-50 w-72 bg-[#111118] border border-white/10 rounded-2xl shadow-2xl overflow-hidden`}
+      style={!modal ? { top: '100%', left: 0, marginTop: 8 } : {}}
     >
       {/* Banner */}
-      <div className={`h-16 bg-gradient-to-r ${getAvatarColor(userEmail)}`} />
+      <div className="h-20" style={getBannerStyle(profile)} />
 
       {/* Avatar + close */}
       <div className="px-4 pb-4">
-        <div className="flex items-start justify-between -mt-8 mb-3">
+        <div className="flex items-start justify-between -mt-8 mb-2">
           <div className="relative group">
             <Avatar name={displayName} email={userEmail} avatarUrl={profile?.avatar_url} size="xl" />
             {profile?.status && (
@@ -170,15 +195,22 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
               </>
             )}
           </div>
-          <button onClick={onClose} className="mt-8 text-gray-500 hover:text-white">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 mt-9">
+            {isSelf && (
+              <Link to="/settings" onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
+                <Settings className="w-3.5 h-3.5" />
+              </Link>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         <h3 className="font-bold text-white text-base">{displayName}</h3>
 
-        {/* Status */}
-        <div className="flex items-center gap-2 mt-1">
+        {/* Status row */}
+        <div className="flex items-center gap-2 mt-1 mb-2">
           <StatusDot status={profile?.status || 'offline'} border="border-[#111118]" />
           <span className="text-xs text-gray-500 capitalize">{profile?.status || 'offline'}</span>
           {joinedDate && <span className="text-xs text-gray-600">· Joined {joinedDate}</span>}
@@ -186,14 +218,14 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
 
         {/* Bio */}
         {isSelf ? (
-          <div className="mt-3">
+          <div className="mb-3">
             {editingBio ? (
               <div className="flex gap-2 items-start">
                 <textarea
                   value={bioInput}
                   onChange={e => setBioInput(e.target.value)}
                   placeholder="Write something about yourself..."
-                  maxLength={120}
+                  maxLength={200}
                   rows={2}
                   className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none"
                 />
@@ -211,19 +243,20 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
             )}
           </div>
         ) : (
-          profile?.bio && <p className="text-gray-400 text-xs mt-2 leading-relaxed">{profile.bio}</p>
+          profile?.bio && <p className="text-gray-400 text-xs mb-3 leading-relaxed">{profile.bio}</p>
         )}
 
         {/* Currently watching */}
         {profile?.status === 'watching' && profile?.currently_watching && (
-          <div className="mt-3 flex items-center gap-2 text-xs bg-violet-600/10 border border-violet-500/20 rounded-lg px-2.5 py-2">
+          <div className="mb-3 flex items-center gap-2 text-xs bg-violet-600/10 border border-violet-500/20 rounded-lg px-2.5 py-2">
             <Tv className="w-3 h-3 text-violet-400 flex-shrink-0" />
             <span className="text-violet-300">Watching <span className="font-semibold">{profile.currently_watching}</span></span>
           </div>
         )}
 
+        {/* Actions for other users */}
         {!isSelf && user && (
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-3">
             {friendStatus === 'friends' ? (
               <div className="flex-1 flex items-center justify-center gap-1.5 text-green-400 text-xs font-semibold py-2 rounded-xl bg-green-400/10 border border-green-400/20">
                 <UserCheck className="w-3.5 h-3.5" /> Friends
@@ -241,17 +274,26 @@ export default function UserProfilePopup({ userEmail, userName, anchorRef, onClo
                 <UserPlus className="w-3.5 h-3.5" /> Add Friend
               </button>
             )}
-            <button
-              onClick={() => { onDM(userEmail, displayName); onClose(); }}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 transition-colors"
-            >
-              <MessageCircle className="w-3.5 h-3.5" /> Message
-            </button>
+
+            {dmAllowed ? (
+              <button
+                onClick={() => { onDM(userEmail, displayName); onClose(); }}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5" /> Message
+              </button>
+            ) : (
+              <div className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-xl bg-white/5 text-gray-600 border border-white/5 cursor-not-allowed">
+                <MessageCircle className="w-3.5 h-3.5" /> DMs Off
+              </div>
+            )}
           </div>
         )}
 
         {isSelf && (
-          <p className="text-center text-gray-700 text-[10px] mt-4">Click your avatar to change it</p>
+          <Link to="/settings" onClick={onClose} className="block mt-3 text-center text-xs text-violet-400 hover:text-violet-300 transition-colors">
+            Open Settings →
+          </Link>
         )}
       </div>
     </motion.div>

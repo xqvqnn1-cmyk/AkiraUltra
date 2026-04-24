@@ -7,7 +7,8 @@ export default function SignInPage() {
 
   const handleSignIn = () => {
     setLoading(true);
-    const next = new URLSearchParams(window.location.search).get('next') || '/';
+    const next = new URLSearchParams(window.location.search).get('next') || '/community';
+    // redirectToLogin navigates in the same tab to the platform login, then redirects back
     base44.auth.redirectToLogin(next);
   };
 
