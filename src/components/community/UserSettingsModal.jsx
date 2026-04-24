@@ -44,6 +44,7 @@ export default function UserSettingsModal({ onClose }) {
   const [profile, setProfile] = useState(null);
   const [bio, setBio] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [bannerColor, setBannerColor] = useState(BANNER_COLORS[0]);
   const [dmEnabled, setDmEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,6 +57,8 @@ export default function UserSettingsModal({ onClose }) {
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [displayNameError, setDisplayNameError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState([]);
 
   const bannerInputRef = useRef(null);
@@ -71,6 +74,7 @@ export default function UserSettingsModal({ onClose }) {
       if (profiles[0]) {
         setProfile(profiles[0]);
         setBio(profiles[0].bio || '');
+        setUsername(profiles[0].user_name || '');
         setBannerColor(profiles[0].banner_color || BANNER_COLORS[0]);
         setDmEnabled(profiles[0].dm_enabled !== false);
       }
@@ -84,18 +88,48 @@ export default function UserSettingsModal({ onClose }) {
     return () => window.removeEventListener('blockStatusChanged', handleBlockChange);
   }, [user]);
 
+  const checkUsernameAvailability = async (value) => {
+    if (!value || value === profile?.user_name) {
+      setUsernameError('');
+      return;
+    }
+    setCheckingUsername(true);
+    try {
+      const existing = await base44.entities.UserProfile.filter({ user_name: value }, null, 1);
+      if (existing.length > 0) {
+        setUsernameError('Username is already taken');
+      } else {
+        setUsernameError('');
+      }
+    } catch (err) {
+      setUsernameError('');
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+
+  const handleUsernameChange = (value) => {
+    setUsername(value);
+    checkUsernameAvailability(value);
+  };
+
   const handleSave = async () => {
     if (!profile) return;
     setDisplayNameError('');
+    setUsernameError('');
+    if (usernameError) {
+      setUsernameError('Username is not available');
+      return;
+    }
     setSaving(true);
     try {
       await Promise.all([
         base44.entities.UserProfile.update(profile.id, {
-          bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: displayName,
+          bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: username || displayName,
         }),
         base44.auth.updateMe({ full_name: displayName }),
       ]);
-      setProfile(prev => ({ ...prev, bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: displayName }));
+      setProfile(prev => ({ ...prev, bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: username || displayName }));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -251,6 +285,22 @@ export default function UserSettingsModal({ onClose }) {
                       className={`w-full bg-[#1a1d23] border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none transition-colors ${displayNameError ? 'border-red-500/50 focus:border-red-500/50' : 'border-white/10 focus:border-violet-500/50'}`}
                     />
                     {displayNameError && <p className="text-xs text-red-400 mt-1">{displayNameError}</p>}
+                  </div>
+
+                  {/* Username */}
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-widest block mb-1.5">Username</label>
+                    <div className="relative">
+                      <input
+                        value={username}
+                        onChange={e => handleUsernameChange(e.target.value)}
+                        placeholder="e.g., gioXyz"
+                        className={`w-full bg-[#1a1d23] border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none transition-colors ${usernameError ? 'border-red-500/50 focus:border-red-500/50' : 'border-white/10 focus:border-violet-500/50'}`}
+                      />
+                      {checkingUsername && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />}
+                    </div>
+                    {usernameError && <p className="text-xs text-red-400 mt-1">{usernameError}</p>}
+                    {!usernameError && username && <p className="text-xs text-green-400 mt-1">✓ Available</p>}
                   </div>
 
                   {/* Bio */}
