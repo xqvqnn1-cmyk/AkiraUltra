@@ -60,6 +60,7 @@ export default function UserSettingsModal({ onClose }) {
   const [usernameError, setUsernameError] = useState('');
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState([]);
+  const usernameCheckTimeoutRef = useRef(null);
 
   const bannerInputRef = useRef(null);
   const appearanceBannerInputRef = useRef(null);
@@ -110,7 +111,10 @@ export default function UserSettingsModal({ onClose }) {
 
   const handleUsernameChange = (value) => {
     setUsername(value);
-    checkUsernameAvailability(value);
+    clearTimeout(usernameCheckTimeoutRef.current);
+    usernameCheckTimeoutRef.current = setTimeout(() => {
+      checkUsernameAvailability(value);
+    }, 800);
   };
 
   const handleSave = async () => {
