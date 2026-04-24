@@ -3,96 +3,134 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hash, Users, MessageCircle, Bell, Settings, ChevronDown, Send, AtSign, Smile, Plus, UserPlus, Check, X, Clock } from 'lucide-react';
+import {
+  Hash, Users, Bell, Settings, ChevronDown, Send,
+  Plus, Check, X, MessageCircle, AtSign, Mic, Headphones,
+  Search, UserPlus, Tv, Circle
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { Avatar, StatusDot } from '../components/community/UserProfilePopup.jsx';
 import ChatMessage from '../components/community/ChatMessage.jsx';
 import DMPanel from '../components/community/DMPanel.jsx';
 import NotificationPanel from '../components/community/NotificationPanel.jsx';
-import { AnimatePresence as AP } from 'framer-motion';
 
 const CHANNELS = [
-  { id: 'general', label: 'general', icon: Hash },
-  { id: 'recommendations', label: 'recommendations', icon: Hash },
-  { id: 'spoilers', label: 'spoilers', icon: Hash },
-  { id: 'seasonal', label: 'seasonal', icon: Hash },
-  { id: 'off-topic', label: 'off-topic', icon: Hash },
+  { id: 'general', label: 'general' },
+  { id: 'recommendations', label: 'recommendations' },
+  { id: 'spoilers', label: 'spoilers' },
+  { id: 'seasonal', label: 'seasonal' },
+  { id: 'off-topic', label: 'off-topic' },
 ];
+
+const STATUS_COLORS = {
+  online: 'bg-green-500',
+  watching: 'bg-violet-500',
+  idle: 'bg-yellow-400',
+  offline: 'bg-gray-600',
+};
 
 function groupMessages(messages) {
   return messages.map((msg, i) => {
     const prev = messages[i - 1];
-    const grouped = prev &&
+    const grouped =
+      prev &&
       prev.user_email === msg.user_email &&
       new Date(msg.created_date) - new Date(prev.created_date) < 5 * 60 * 1000;
     return { ...msg, grouped };
   });
 }
 
+/* ─── Server icon pill (left rail) ─── */
+function ServerIcon({ label, active, onClick, notif }) {
+  return (
+    <div className="relative flex flex-col items-center group" onClick={onClick}>
+      {/* active indicator */}
+      <span
+        className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-white transition-all duration-200 ${active ? 'h-8' : 'h-2 opacity-0 group-hover:opacity-100 group-hover:h-5'}`}
+      />
+      <div
+        className={`w-12 h-12 rounded-[50%] group-hover:rounded-[30%] transition-all duration-200 flex items-center justify-center text-sm font-black cursor-pointer select-none overflow-hidden
+          ${active ? 'rounded-[30%] bg-violet-600 text-white' : 'bg-[#1e1e2e] text-gray-400 hover:bg-violet-600 hover:text-white'}`}
+      >
+        {label}
+      </div>
+      {notif && (
+        <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-[#0a0a0f] text-[8px] flex items-center justify-center font-bold text-white">
+          {notif}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function CommunityPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
   const [activeChannel, setActiveChannel] = useState('general');
   const [view, setView] = useState('channels'); // 'channels' | 'friends'
-  const [friendsTab, setFriendsTab] = useState('online'); // 'online' | 'all' | 'pending'
+  const [friendsTab, setFriendsTab] = useState('online');
   const [input, setInput] = useState('');
-  const [dmTarget, setDmTarget] = useState(null); // { email, name }
+  const [dmTarget, setDmTarget] = useState(null);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [profiles, setProfiles] = useState([]);
+  const [showMemberList, setShowMemberList] = useState(true);
+
   const endRef = useRef(null);
   const notifsRef = useRef(null);
-  const [profiles, setProfiles] = useState([]);
+  const inputRef = useRef(null);
 
-  // Load all user profiles for avatars / status
+  /* ── Profiles polling ── */
   useEffect(() => {
     base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles);
-    const interval = setInterval(() => {
-      base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles);
-    }, 15000);
-    return () => clearInterval(interval);
+    const iv = setInterval(
+      () => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles),
+      15000
+    );
+    return () => clearInterval(iv);
   }, []);
 
-  // Realtime status update
+  /* ── Realtime status ── */
   useEffect(() => {
     if (!user) return;
-    const updateStatus = async (status) => {
-      const existing = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
-      if (existing[0]) {
-        await base44.entities.UserProfile.update(existing[0].id, { status });
-      }
+    const update = async (status) => {
+      const ex = await base44.entities.UserProfile.filter({ user_email: user.email }, null, 1);
+      if (ex[0]) await base44.entities.UserProfile.update(ex[0].id, { status });
     };
-    updateStatus('online');
-    const onVisibility = () => updateStatus(document.hidden ? 'idle' : 'online');
-    const onUnload = () => updateStatus('offline');
-    document.addEventListener('visibilitychange', onVisibility);
+    update('online');
+    const onVis = () => update(document.hidden ? 'idle' : 'online');
+    const onUnload = () => update('offline');
+    document.addEventListener('visibilitychange', onVis);
     window.addEventListener('beforeunload', onUnload);
     return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('beforeunload', onUnload);
-      updateStatus('offline');
+      update('offline');
     };
   }, [user]);
 
-  // Listen for openDM events from chat messages
+  /* ── openDM event ── */
   useEffect(() => {
-    const handler = (e) => setDmTarget({ email: e.detail.email, name: e.detail.name });
-    window.addEventListener('openDM', handler);
-    return () => window.removeEventListener('openDM', handler);
+    const h = (e) => setDmTarget({ email: e.detail.email, name: e.detail.name });
+    window.addEventListener('openDM', h);
+    return () => window.removeEventListener('openDM', h);
   }, []);
 
-  // Close notifs on outside click
+  /* ── Close notifs outside click ── */
   useEffect(() => {
-    const handler = (e) => {
+    const h = (e) => {
       if (notifsRef.current && !notifsRef.current.contains(e.target)) setShowNotifs(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Messages
+  /* ── Messages ── */
   const { data: messages = [] } = useQuery({
     queryKey: ['chat', activeChannel],
-    queryFn: () => base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 60),
+    queryFn: () =>
+      base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 80),
     refetchInterval: 3000,
     enabled: view === 'channels',
   });
@@ -103,7 +141,7 @@ export default function CommunityPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (content) => {
-      const mentions = (content.match(/@(\w[\w\d_-]*)/g) || []).map(m => m.slice(1));
+      const mentions = (content.match(/@(\w[\w\d_-]*)/g) || []).map((m) => m.slice(1));
       return base44.entities.ChatMessage.create({
         content,
         channel: activeChannel,
@@ -124,26 +162,30 @@ export default function CommunityPage() {
     sendMutation.mutate(input.trim());
   };
 
-  // Notifications
+  /* ── Notifications ── */
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.email],
-    queryFn: () => base44.entities.Notification.filter({ user_email: user.email }, '-created_date', 30),
+    queryFn: () =>
+      base44.entities.Notification.filter({ user_email: user.email }, '-created_date', 30),
     enabled: !!user,
     refetchInterval: 10000,
   });
-
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markRead = async (id) => {
     await base44.entities.Notification.update(id, { read: true });
     queryClient.invalidateQueries({ queryKey: ['notifications', user?.email] });
   };
   const markAllRead = async () => {
-    await Promise.all(notifications.filter(n => !n.read).map(n => base44.entities.Notification.update(n.id, { read: true })));
+    await Promise.all(
+      notifications.filter((n) => !n.read).map((n) =>
+        base44.entities.Notification.update(n.id, { read: true })
+      )
+    );
     queryClient.invalidateQueries({ queryKey: ['notifications', user?.email] });
   };
 
-  // Friends
+  /* ── Friends ── */
   const { data: friendRequests = [] } = useQuery({
     queryKey: ['friends', user?.email],
     queryFn: async () => {
@@ -161,10 +203,13 @@ export default function CommunityPage() {
   const acceptFriend = async (req) => {
     await base44.entities.FriendRequest.update(req.id, { status: 'accepted' });
     await base44.entities.Notification.create({
-      user_email: req.from_email, type: 'friend_accepted',
+      user_email: req.from_email,
+      type: 'friend_accepted',
       title: 'Friend Request Accepted',
       body: `${user.full_name || user.email.split('@')[0]} accepted your friend request`,
-      from_email: user.email, from_name: user.full_name || user.email.split('@')[0], read: false,
+      from_email: user.email,
+      from_name: user.full_name || user.email.split('@')[0],
+      read: false,
     });
     queryClient.invalidateQueries({ queryKey: ['friends', user?.email] });
   };
@@ -174,237 +219,402 @@ export default function CommunityPage() {
     queryClient.invalidateQueries({ queryKey: ['friends', user?.email] });
   };
 
-  const friends = friendRequests.filter(r => r.status === 'accepted');
-  const pending = friendRequests.filter(r => r.status === 'pending' && r.to_email === user?.email);
-  const onlineFriends = friends.filter(r => {
+  const friends = friendRequests.filter((r) => r.status === 'accepted');
+  const pending = friendRequests.filter(
+    (r) => r.status === 'pending' && r.to_email === user?.email
+  );
+  const onlineFriends = friends.filter((r) => {
     const email = r.from_email === user?.email ? r.to_email : r.from_email;
-    const profile = profiles.find(p => p.user_email === email);
-    return profile?.status === 'online' || profile?.status === 'watching';
+    const p = profiles.find((x) => x.user_email === email);
+    return p?.status === 'online' || p?.status === 'watching';
   });
 
-  const myProfile = profiles.find(p => p.user_email === user?.email);
-  const displayName = myProfile?.user_name || user?.full_name || user?.email?.split('@')[0] || 'You';
+  const myProfile = profiles.find((p) => p.user_email === user?.email);
+  const displayName =
+    myProfile?.user_name || user?.full_name || user?.email?.split('@')[0] || 'You';
 
   const grouped = groupMessages(messages);
 
+  const onlineProfiles = profiles.filter(
+    (p) => p.status === 'online' || p.status === 'watching'
+  );
+  const offlineProfiles = profiles.filter(
+    (p) => p.status !== 'online' && p.status !== 'watching'
+  );
+
   return (
-    <div className="flex h-screen bg-[#0a0a0f] text-white overflow-hidden">
-      {/* Left Sidebar */}
-      <div className="w-60 flex-shrink-0 bg-[#0d0d14] border-r border-white/5 flex flex-col">
-        {/* Server Header */}
-        <div className="h-14 flex items-center px-4 border-b border-white/5 font-bold text-sm cursor-pointer hover:bg-white/5 transition-colors">
-          <span className="flex-1">AkiraPlus Community</span>
-          <ChevronDown className="w-4 h-4 text-gray-500" />
-        </div>
+    /* The community page takes full viewport, sits BELOW the Navbar (pt-16) */
+    <div className="flex flex-col h-screen bg-[#0b0b10] text-white overflow-hidden">
+      {/* Top Navbar stays */}
+      <Navbar />
 
-        <div className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
-          {/* Friends */}
-          <button
-            onClick={() => setView('friends')}
-            className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'friends' ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
-          >
-            <Users className="w-4 h-4" /> Friends
-            {pending.length > 0 && <span className="ml-auto w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center">{pending.length}</span>}
+      {/* Below navbar */}
+      <div className="flex flex-1 overflow-hidden pt-16">
+
+        {/* ══ COLUMN 1 — Server Rail (72px) ══ */}
+        <div className="w-[72px] flex-shrink-0 bg-[#0b0b10] flex flex-col items-center py-3 gap-3 border-r border-white/5 overflow-y-auto scrollbar-hide">
+          {/* Home / AkiraPlus icon */}
+          <ServerIcon
+            label={<img src="https://media.base44.com/images/public/69eaec00027d7dc32aaa376a/43ed0279b_ChatGPTImageApr24202612_30_57AM.png" alt="A+" className="w-8 h-8 object-contain" />}
+            active={true}
+          />
+          <div className="w-8 h-px bg-white/10 my-1" />
+          <ServerIcon label="AN" />
+          <ServerIcon label="SP" notif={pending.length > 0 ? pending.length : null} />
+          <ServerIcon label="REC" />
+
+          <div className="w-8 h-px bg-white/10 my-1" />
+          <button className="w-12 h-12 rounded-[50%] hover:rounded-[30%] bg-[#1e1e2e] hover:bg-green-600 text-green-500 hover:text-white flex items-center justify-center transition-all duration-200">
+            <Plus className="w-5 h-5" />
           </button>
+        </div>
 
-          {/* Channels */}
-          <div className="mt-4 mb-1 px-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Text Channels</p>
+        {/* ══ COLUMN 2 — Channel / Friends Sidebar (240px) ══ */}
+        <div className="w-60 flex-shrink-0 bg-[#111118] flex flex-col border-r border-white/5">
+          {/* Server name header */}
+          <div className="h-12 flex items-center px-4 border-b border-white/5 shadow-md cursor-pointer hover:bg-white/5 transition-colors flex-shrink-0">
+            <span className="flex-1 font-bold text-sm tracking-tight">AkiraPlus Community</span>
+            <ChevronDown className="w-4 h-4 text-gray-500" />
           </div>
-          {CHANNELS.map(ch => {
-            const Icon = ch.icon;
-            return (
+
+          <div className="flex-1 overflow-y-auto py-2 scrollbar-hide">
+            {/* Friends button */}
+            <div className="px-2 mb-1">
               <button
-                key={ch.id}
-                onClick={() => { setActiveChannel(ch.id); setView('channels'); }}
-                className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-colors ${view === 'channels' && activeChannel === ch.id ? 'bg-white/10 text-white' : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'}`}
+                onClick={() => setView('friends')}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors ${
+                  view === 'friends'
+                    ? 'bg-white/10 text-white'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                }`}
               >
-                <Icon className="w-4 h-4" />
-                {ch.label}
-              </button>
-            );
-          })}
-
-          {/* Online members */}
-          <div className="mt-4 mb-1 px-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Online — {profiles.filter(p => p.status === 'online' || p.status === 'watching').length}</p>
-          </div>
-          {profiles.filter(p => p.status === 'online' || p.status === 'watching').slice(0, 10).map(p => (
-            <div key={p.user_email} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors" onClick={() => setDmTarget({ email: p.user_email, name: p.user_name || p.user_email.split('@')[0] })}>
-              <div className="relative">
-                <Avatar name={p.user_name || p.user_email} email={p.user_email} avatarUrl={p.avatar_url} size="sm" />
-                <div className="absolute -bottom-0.5 -right-0.5"><StatusDot status={p.status} border="border-[#0d0d14]" /></div>
-              </div>
-              <span className="text-xs text-gray-400 truncate">{p.user_name || p.user_email.split('@')[0]}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* User bar */}
-        <div className="h-14 border-t border-white/5 bg-[#0b0b12] flex items-center px-3 gap-2">
-          <div className="relative flex-shrink-0">
-            <Avatar name={displayName} email={user?.email} avatarUrl={myProfile?.avatar_url} size="sm" />
-            <div className="absolute -bottom-0.5 -right-0.5"><StatusDot status={myProfile?.status || 'offline'} border="border-[#0b0b12]" /></div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-white truncate">{displayName}</p>
-            <p className="text-[10px] text-gray-600 capitalize">{myProfile?.status || 'offline'}</p>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="relative" ref={notifsRef}>
-              <button onClick={() => setShowNotifs(v => !v)} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 hover:text-white transition-colors relative">
-                <Bell className="w-3.5 h-3.5" />
-                {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full text-[8px] flex items-center justify-center text-white font-bold">{unreadCount}</span>}
-              </button>
-              <AnimatePresence>
-                {showNotifs && (
-                  <NotificationPanel
-                    notifications={notifications}
-                    onClose={() => setShowNotifs(false)}
-                    onMarkRead={markRead}
-                    onMarkAllRead={markAllRead}
-                  />
+                <Users className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">Friends</span>
+                {pending.length > 0 && (
+                  <span className="w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center font-bold text-white">
+                    {pending.length}
+                  </span>
                 )}
-              </AnimatePresence>
-            </div>
-            <Link to="/settings" className="p-1.5 rounded-lg hover:bg-white/5 text-gray-500 hover:text-white transition-colors">
-              <Settings className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {view === 'channels' ? (
-          <>
-            {/* Channel Header */}
-            <div className="h-14 border-b border-white/5 flex items-center px-5 gap-3 bg-[#0f0f18] flex-shrink-0">
-              <Hash className="w-5 h-5 text-gray-500" />
-              <span className="font-bold text-white">{activeChannel}</span>
-              <span className="text-gray-600 text-sm hidden md:block">·</span>
-              <span className="text-gray-500 text-sm hidden md:block">Welcome to #{activeChannel}!</span>
+              </button>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
-              {grouped.map(msg => (
-                <ChatMessage
-                  key={msg.id}
-                  msg={msg}
-                  currentUser={user}
-                  profiles={profiles}
-                  onMention={(name) => setInput(v => v + `@${name} `)}
-                />
-              ))}
-              <div ref={endRef} />
-            </div>
-
-            {/* Input */}
-            {user ? (
-              <form onSubmit={handleSend} className="px-4 pb-4 pt-1 flex-shrink-0">
-                <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus-within:border-violet-500/40 transition-colors">
-                  <input
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    placeholder={`Message #${activeChannel}`}
-                    className="flex-1 bg-transparent text-white text-sm placeholder-gray-600 focus:outline-none"
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
-                  />
-                  <button type="submit" disabled={!input.trim() || sendMutation.isPending} className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors">
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="px-4 pb-4 pt-1 flex-shrink-0">
-                <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-sm text-gray-500">
-                  <Link to="/signin" className="text-violet-400 hover:text-violet-300">Sign in</Link> to chat
-                </div>
+            {/* Channels section */}
+            <div className="px-2 mt-4">
+              <div className="flex items-center justify-between px-1.5 mb-1 group">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 group-hover:text-gray-300 transition-colors">
+                  Text Channels
+                </p>
+                <button className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-white">
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               </div>
-            )}
-          </>
-        ) : (
-          <>
-            {/* Friends Header */}
-            <div className="h-14 border-b border-white/5 flex items-center px-5 gap-4 bg-[#0f0f18] flex-shrink-0">
-              <Users className="w-5 h-5 text-gray-500" />
-              <span className="font-bold text-white">Friends</span>
-              <div className="flex items-center gap-1 ml-2">
-                {['online', 'all', 'pending'].map(tab => (
-                  <button key={tab} onClick={() => setFriendsTab(tab)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${friendsTab === tab ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
-                    {tab}
-                    {tab === 'pending' && pending.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-red-500 rounded-full text-[10px] font-bold">{pending.length}</span>}
+
+              <div className="space-y-0.5">
+                {CHANNELS.map((ch) => (
+                  <button
+                    key={ch.id}
+                    onClick={() => { setActiveChannel(ch.id); setView('channels'); }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition-colors group ${
+                      view === 'channels' && activeChannel === ch.id
+                        ? 'bg-white/10 text-white'
+                        : 'text-gray-500 hover:bg-white/5 hover:text-gray-300'
+                    }`}
+                  >
+                    <Hash className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 text-left">{ch.label}</span>
                   </button>
                 ))}
               </div>
             </div>
+          </div>
 
-            {/* Friends List */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {friendsTab === 'pending' ? (
-                pending.length === 0 ? (
-                  <div className="text-center py-16 text-gray-600">No pending requests</div>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-3">Incoming Requests — {pending.length}</p>
-                    {pending.map(req => (
-                      <div key={req.id} className="flex items-center gap-3 p-3 bg-white/3 hover:bg-white/5 rounded-xl border border-white/5 transition-colors">
-                        <Avatar name={req.from_name || req.from_email} email={req.from_email} size="md" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-white text-sm">{req.from_name || req.from_email.split('@')[0]}</p>
-                          <p className="text-xs text-gray-500">Incoming Friend Request</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => acceptFriend(req)} className="p-2 rounded-lg bg-green-600/20 hover:bg-green-600/40 text-green-400 border border-green-500/20 transition-colors">
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => declineFriend(req)} className="p-2 rounded-lg bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/20 transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+          {/* ── User bar ── */}
+          <div className="h-14 bg-[#0d0d15] border-t border-white/5 flex items-center px-2 gap-2 flex-shrink-0">
+            <div className="relative cursor-pointer" onClick={() => {}}>
+              <Avatar
+                name={displayName}
+                email={user?.email}
+                avatarUrl={myProfile?.avatar_url}
+                size="sm"
+              />
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0d0d15] ${
+                  STATUS_COLORS[myProfile?.status || 'offline']
+                }`}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-white truncate leading-tight">{displayName}</p>
+              <p className="text-[10px] text-gray-500 truncate capitalize">{myProfile?.status || 'offline'}</p>
+            </div>
+            <div className="flex items-center gap-0.5">
+              {/* Notifications */}
+              <div className="relative" ref={notifsRef}>
+                <button
+                  onClick={() => setShowNotifs((v) => !v)}
+                  className="p-1.5 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors relative"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full text-[8px] flex items-center justify-center font-bold text-white border border-[#0d0d15]">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                <AnimatePresence>
+                  {showNotifs && (
+                    <NotificationPanel
+                      notifications={notifications}
+                      onClose={() => setShowNotifs(false)}
+                      onMarkRead={markRead}
+                      onMarkAllRead={markAllRead}
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+              <Link
+                to="/settings"
+                className="p-1.5 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* ══ COLUMN 3 — Main Content ══ */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[#141420]">
+
+          {view === 'channels' ? (
+            <>
+              {/* Channel topbar */}
+              <div className="h-12 border-b border-white/5 flex items-center px-4 gap-3 flex-shrink-0 bg-[#141420]">
+                <Hash className="w-4 h-4 text-gray-400" />
+                <span className="font-bold text-white text-sm">{activeChannel}</span>
+                <div className="w-px h-5 bg-white/10 mx-1" />
+                <span className="text-gray-500 text-xs hidden md:block">
+                  Community chat for #{activeChannel}
+                </span>
+                <div className="ml-auto flex items-center gap-1">
+                  <button
+                    onClick={() => setShowMemberList((v) => !v)}
+                    className={`p-1.5 rounded hover:bg-white/10 transition-colors ${showMemberList ? 'text-white' : 'text-gray-500 hover:text-white'}`}
+                    title="Toggle member list"
+                  >
+                    <Users className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
+                {grouped.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                      <Hash className="w-8 h-8 text-gray-600" />
+                    </div>
+                    <p className="text-white font-bold text-lg">Welcome to #{activeChannel}!</p>
+                    <p className="text-gray-500 text-sm mt-1">This is the beginning of the #{activeChannel} channel.</p>
                   </div>
-                )
-              ) : (
-                (() => {
+                )}
+                {grouped.map((msg) => (
+                  <ChatMessage
+                    key={msg.id}
+                    msg={msg}
+                    currentUser={user}
+                    profiles={profiles}
+                    onMention={(name) => {
+                      setInput((v) => v + `@${name} `);
+                      inputRef.current?.focus();
+                    }}
+                  />
+                ))}
+                <div ref={endRef} />
+              </div>
+
+              {/* Input bar */}
+              <div className="px-4 pb-4 pt-1 flex-shrink-0">
+                {user ? (
+                  <form onSubmit={handleSend}>
+                    <div className="flex items-center gap-2 bg-[#1e1e2e] rounded-xl px-4 py-3 focus-within:ring-1 focus-within:ring-violet-500/30 transition-all">
+                      <button type="button" className="text-gray-500 hover:text-gray-300 transition-colors flex-shrink-0">
+                        <Plus className="w-5 h-5" />
+                      </button>
+                      <input
+                        ref={inputRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder={`Message #${activeChannel}`}
+                        className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend(e);
+                          }
+                        }}
+                      />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button type="button" className="text-gray-500 hover:text-gray-300 transition-colors">
+                          <AtSign className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!input.trim() || sendMutation.isPending}
+                          className="text-gray-500 hover:text-violet-400 disabled:opacity-30 transition-colors"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="bg-[#1e1e2e] rounded-xl px-4 py-3 text-center text-sm text-gray-500">
+                    <Link to="/signin" className="text-violet-400 hover:text-violet-300 font-semibold">
+                      Sign in
+                    </Link>{' '}
+                    to join the conversation
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            /* ── Friends view ── */
+            <>
+              <div className="h-12 border-b border-white/5 flex items-center px-4 gap-3 flex-shrink-0 bg-[#141420]">
+                <Users className="w-4 h-4 text-gray-400" />
+                <span className="font-bold text-white text-sm">Friends</span>
+                <div className="w-px h-5 bg-white/10 mx-1" />
+                <div className="flex items-center gap-1">
+                  {['online', 'all', 'pending'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setFriendsTab(tab)}
+                      className={`px-3 py-1 rounded text-sm font-medium capitalize transition-colors ${
+                        friendsTab === tab
+                          ? 'bg-white/10 text-white'
+                          : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
+                      }`}
+                    >
+                      {tab}
+                      {tab === 'pending' && pending.length > 0 && (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-red-500 rounded-full text-[10px] font-bold">
+                          {pending.length}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <div className="ml-auto">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded text-xs font-semibold border border-green-500/20 transition-colors">
+                    <UserPlus className="w-3.5 h-3.5" /> Add Friend
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {friendsTab === 'pending' ? (
+                  pending.length === 0 ? (
+                    <EmptyState icon={<UserPlus className="w-10 h-10 text-gray-600" />} title="No pending requests" sub="Friend requests will appear here." />
+                  ) : (
+                    <FriendSection title={`Pending — ${pending.length}`}>
+                      {pending.map((req) => (
+                        <FriendRow key={req.id} email={req.from_email} name={req.from_name || req.from_email.split('@')[0]} profile={profiles.find(p => p.user_email === req.from_email)} sub="Incoming Friend Request">
+                          <button onClick={() => acceptFriend(req)} className="p-2 rounded-lg bg-green-600/20 hover:bg-green-600/40 text-green-400 border border-green-500/20 transition-colors"><Check className="w-4 h-4" /></button>
+                          <button onClick={() => declineFriend(req)} className="p-2 rounded-lg bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/20 transition-colors"><X className="w-4 h-4" /></button>
+                        </FriendRow>
+                      ))}
+                    </FriendSection>
+                  )
+                ) : (() => {
                   const list = friendsTab === 'online' ? onlineFriends : friends;
-                  if (list.length === 0) return <div className="text-center py-16 text-gray-600">{friendsTab === 'online' ? 'No friends online' : 'No friends yet'}</div>;
+                  if (list.length === 0) return (
+                    <EmptyState
+                      icon={<Users className="w-10 h-10 text-gray-600" />}
+                      title={friendsTab === 'online' ? 'No friends online' : 'No friends yet'}
+                      sub={friendsTab === 'online' ? 'Your friends will appear here when online.' : 'Add friends to get started!'}
+                    />
+                  );
                   return (
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-3">{friendsTab === 'online' ? 'Online' : 'All Friends'} — {list.length}</p>
-                      {list.map(req => {
+                    <FriendSection title={`${friendsTab === 'online' ? 'Online' : 'All'} — ${list.length}`}>
+                      {list.map((req) => {
                         const email = req.from_email === user?.email ? req.to_email : req.from_email;
-                        const name = req.from_email === user?.email ? (req.to_name || email.split('@')[0]) : (req.from_name || email.split('@')[0]);
-                        const profile = profiles.find(p => p.user_email === email);
+                        const name = req.from_email === user?.email
+                          ? (req.to_name || email.split('@')[0])
+                          : (req.from_name || email.split('@')[0]);
+                        const profile = profiles.find((p) => p.user_email === email);
                         return (
-                          <div key={req.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition-colors group">
-                            <div className="relative">
-                              <Avatar name={name} email={email} avatarUrl={profile?.avatar_url} size="md" />
-                              <div className="absolute -bottom-0.5 -right-0.5"><StatusDot status={profile?.status || 'offline'} border="border-[#0f0f18]" /></div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-white text-sm">{name}</p>
-                              <p className="text-xs text-gray-500 capitalize">{profile?.status === 'watching' ? `Watching ${profile.currently_watching || '...'}` : profile?.status || 'offline'}</p>
-                            </div>
-                            <button onClick={() => setDmTarget({ email, name })} className="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-white/5 hover:bg-violet-600/20 text-gray-400 hover:text-violet-400 transition-all">
+                          <FriendRow key={req.id} email={email} name={name} profile={profile}
+                            sub={profile?.status === 'watching' ? `Watching ${profile.currently_watching || '...'}` : profile?.status || 'offline'}>
+                            <button onClick={() => setDmTarget({ email, name })} className="p-2 rounded-lg bg-white/5 hover:bg-violet-600/20 text-gray-400 hover:text-violet-400 transition-colors border border-white/5">
                               <MessageCircle className="w-4 h-4" />
                             </button>
-                          </div>
+                          </FriendRow>
                         );
                       })}
-                    </div>
+                    </FriendSection>
                   );
-                })()
-              )}
-            </div>
-          </>
-        )}
+                })()}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ══ COLUMN 4 — Member List (right panel, 240px) ══ */}
+        <AnimatePresence>
+          {(view === 'channels' && showMemberList) && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 240, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex-shrink-0 bg-[#111118] border-l border-white/5 overflow-hidden flex flex-col"
+            >
+              <div className="flex-1 overflow-y-auto py-4 px-3 scrollbar-hide">
+                {/* Online */}
+                {onlineProfiles.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 px-1 mb-2">
+                      Online — {onlineProfiles.length}
+                    </p>
+                    <div className="space-y-0.5">
+                      {onlineProfiles.map((p) => (
+                        <MemberItem
+                          key={p.user_email}
+                          profile={p}
+                          currentUser={user}
+                          onDM={() => setDmTarget({ email: p.user_email, name: p.user_name || p.user_email.split('@')[0] })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Offline */}
+                {offlineProfiles.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 px-1 mb-2">
+                      Offline — {offlineProfiles.length}
+                    </p>
+                    <div className="space-y-0.5 opacity-50">
+                      {offlineProfiles.slice(0, 20).map((p) => (
+                        <MemberItem
+                          key={p.user_email}
+                          profile={p}
+                          currentUser={user}
+                          onDM={() => setDmTarget({ email: p.user_email, name: p.user_name || p.user_email.split('@')[0] })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* DM Panel */}
+      {/* ── DM Panel overlay ── */}
       <AnimatePresence>
         {dmTarget && user && (
           <DMPanel
@@ -416,6 +626,69 @@ export default function CommunityPage() {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* ── Small reusable sub-components ── */
+
+function MemberItem({ profile, currentUser, onDM }) {
+  const name = profile.user_name || profile.user_email?.split('@')[0] || 'User';
+  const isSelf = currentUser?.email === profile.user_email;
+  return (
+    <div
+      className="flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-white/5 cursor-pointer group transition-colors"
+      onClick={!isSelf ? onDM : undefined}
+    >
+      <div className="relative flex-shrink-0">
+        <Avatar name={name} email={profile.user_email} avatarUrl={profile.avatar_url} size="sm" />
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111118] ${STATUS_COLORS[profile.status || 'offline']}`}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-gray-300 group-hover:text-white truncate transition-colors">{name}</p>
+        {profile.status === 'watching' && profile.currently_watching && (
+          <p className="text-[10px] text-violet-400 truncate flex items-center gap-1">
+            <Tv className="w-2.5 h-2.5" /> {profile.currently_watching}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FriendRow({ email, name, profile, sub, children }) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors group border border-transparent hover:border-white/5">
+      <div className="relative flex-shrink-0">
+        <Avatar name={name} email={email} avatarUrl={profile?.avatar_url} size="md" />
+        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#141420] ${STATUS_COLORS[profile?.status || 'offline']}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-white text-sm">{name}</p>
+        <p className="text-xs text-gray-500 capitalize truncate">{sub}</p>
+      </div>
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">{children}</div>
+    </div>
+  );
+}
+
+function FriendSection({ title, children }) {
+  return (
+    <div className="mb-6">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-3 px-3">{title}</p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, sub }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+      <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">{icon}</div>
+      <p className="text-white font-bold text-lg mb-1">{title}</p>
+      <p className="text-gray-500 text-sm">{sub}</p>
     </div>
   );
 }
