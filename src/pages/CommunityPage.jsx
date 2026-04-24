@@ -81,7 +81,7 @@ export default function CommunityPage() {
   /* ── Profiles ── */
   useEffect(() => {
     base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles);
-    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles), 5000);
+    const iv = setInterval(() => base44.entities.UserProfile.list('-updated_date', 100).then(setProfiles), 30000);
     return () => clearInterval(iv);
   }, []);
 
@@ -140,7 +140,7 @@ export default function CommunityPage() {
   const { data: messages = [] } = useQuery({
     queryKey: ['chat', activeChannel],
     queryFn: () => base44.entities.ChatMessage.filter({ channel: activeChannel }, 'created_date', 80),
-    refetchInterval: 5000,
+    refetchInterval: 8000,
     enabled: view === 'channel',
   });
 
@@ -148,7 +148,7 @@ export default function CommunityPage() {
   const { data: reactions = [] } = useQuery({
     queryKey: ['chatReactions', activeChannel],
     queryFn: () => base44.entities.MessageReaction.filter({ message_type: 'chat' }, null, 200),
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   });
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
@@ -205,7 +205,7 @@ export default function CommunityPage() {
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.email],
     queryFn: () => base44.entities.Notification.filter({ user_email: user.email }, '-created_date', 30),
-    enabled: !!user, refetchInterval: 20000,
+    enabled: !!user, refetchInterval: 60000,
   });
   const unreadCount = notifications.filter(n => !n.read).length;
   const markRead = async (id) => { await base44.entities.Notification.update(id, { read: true }); queryClient.invalidateQueries({ queryKey: ['notifications', user?.email] }); };
@@ -222,7 +222,7 @@ export default function CommunityPage() {
       ]);
       return [...sent, ...received];
     },
-    enabled: !!user, refetchInterval: 30000,
+    enabled: !!user, refetchInterval: 60000,
   });
 
   const acceptFriend = async (req) => {
@@ -287,7 +287,7 @@ export default function CommunityPage() {
       }
     }
 
-    // Clear typing after 3 seconds of inactivity
+    // Clear typing after 4 seconds of inactivity
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(async () => {
       setIsTyping(false);
@@ -295,7 +295,7 @@ export default function CommunityPage() {
       if (myProf) {
         base44.entities.UserProfile.update(myProf.id, { is_typing: false });
       }
-    }, 3000);
+    }, 4000);
   };
 
   const handleStatusChange = async (status) => {
