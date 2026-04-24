@@ -204,7 +204,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
     const existingReaction = reactions.find(r => r.message_id === msgId && r.user_email === user?.email && r.emoji === emoji);
     if (existingReaction) {
       await base44.entities.MessageReaction.delete(existingReaction.id);
-      await queryClient.refetchQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
+      queryClient.invalidateQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
       return;
     }
     
@@ -217,7 +217,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
       user_email: user?.email,
       emoji,
     });
-    await queryClient.refetchQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
+    queryClient.invalidateQueries({ queryKey: ['dmReactions', user?.email, targetEmail] });
   };
 
   const sendFriendRequest = async () => {
