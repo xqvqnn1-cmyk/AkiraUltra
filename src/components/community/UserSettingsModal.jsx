@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import {
-  X, User, Palette, MessageCircle, Camera, ImagePlus
+  X, User, Palette, MessageCircle, Camera, ImagePlus, Mail, Check, Loader2
 } from 'lucide-react';
 import { Avatar } from './UserProfilePopup.jsx';
 import AvatarEditModal from './AvatarEditModal.jsx';
@@ -33,6 +33,7 @@ const BANNER_GRADIENT_MAP = {
 const TABS = [
   { id: 'profile', label: 'My Account', icon: User },
   { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'email', label: 'Email & Security', icon: Mail },
   { id: 'privacy', label: 'Privacy', icon: MessageCircle },
 ];
 
@@ -48,6 +49,12 @@ export default function UserSettingsModal({ onClose }) {
   const [saved, setSaved] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailVerificationCode, setEmailVerificationCode] = useState('');
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [displayNameError, setDisplayNameError] = useState('');
 
   const bannerInputRef = useRef(null);
   const appearanceBannerInputRef = useRef(null);
@@ -67,17 +74,57 @@ export default function UserSettingsModal({ onClose }) {
 
   const handleSave = async () => {
     if (!profile) return;
+    setDisplayNameError('');
     setSaving(true);
-    await Promise.all([
-      base44.entities.UserProfile.update(profile.id, {
-        bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: displayName,
-      }),
-      base44.auth.updateMe({ full_name: displayName }),
-    ]);
-    setProfile(prev => ({ ...prev, bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: displayName }));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await Promise.all([
+        base44.entities.UserProfile.update(profile.id, {
+          bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: displayName,
+        }),
+        base44.auth.updateMe({ full_name: displayName }),
+      ]);
+      setProfile(prev => ({ ...prev, bio, banner_color: bannerColor, dm_enabled: dmEnabled, user_name: displayName }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setDisplayNameError('Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendEmailCode = async () => {
+    if (!newEmail || newEmail === user.email) {
+      setDisplayNameError('Please enter a different email');
+      return;
+    }
+    setSendingCode(true);
+    try {
+      await base44.auth.changeEmailRequestVerification(newEmail);
+      setShowEmailVerification(true);
+    } catch (err) {
+      setDisplayNameError('Failed to send verification code');
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!emailVerificationCode) return;
+    setVerifyingEmail(true);
+    try {
+      await base44.auth.changeEmailVerify(newEmail, emailVerificationCode);
+      setDisplayNameError('');
+      setNewEmail('');
+      setEmailVerificationCode('');
+      setShowEmailVerification(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setDisplayNameError('Invalid verification code');
+    } finally {
+      setVerifyingEmail(false);
+    }
   };
 
   const handleAvatarApply = async (file) => {
@@ -201,7 +248,7 @@ export default function UserSettingsModal({ onClose }) {
                     <div className="bg-[#1a1d23] px-5 pb-4 pt-0">
                       <div className="flex items-end gap-4 -mt-8 mb-3">
                         <div className="relative group cursor-pointer flex-shrink-0" onClick={() => setShowAvatarModal(true)}>
-                          <div className="ring-4 ring-[#1a1d23] rounded-full">
+                          <div className="ring-4 ring-white/10 rounded-full inline-block">
                             <Avatar name={dn} email={user.email} avatarUrl={profile?.avatar_url} size="xl" />
                           </div>
                           <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -240,9 +287,10 @@ export default function UserSettingsModal({ onClose }) {
                     <label className="text-xs text-gray-500 uppercase tracking-widest block mb-1.5">Display Name</label>
                     <input
                       value={displayName}
-                      onChange={e => setDisplayName(e.target.value)}
-                      className="w-full bg-[#1a1d23] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                      onChange={e => { setDisplayName(e.target.value); setDisplayNameError(''); }}
+                      className={`w-full bg-[#1a1d23] border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none transition-colors ${displayNameError ? 'border-red-500/50 focus:border-red-500/50' : 'border-white/10 focus:border-violet-500/50'}`}
                     />
+                    {displayNameError && <p className="text-xs text-red-400 mt-1">{displayNameError}</p>}
                   </div>
 
                   {/* Bio */}
@@ -297,6 +345,68 @@ export default function UserSettingsModal({ onClose }) {
                 </>
               )}
 
+              {/* ── EMAIL TAB ── */}
+              {activeTab === 'email' && (
+                <>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-widest block mb-1.5">Current Email</label>
+                    <div className="bg-[#1a1d23] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-gray-400">
+                      {user.email}
+                    </div>
+                  </div>
+
+                  {!showEmailVerification ? (
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase tracking-widest block mb-1.5">New Email</label>
+                      <input
+                        value={newEmail}
+                        onChange={e => { setNewEmail(e.target.value); setDisplayNameError(''); }}
+                        type="email"
+                        placeholder="Enter new email address"
+                        className="w-full bg-[#1a1d23] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                      />
+                      {displayNameError && <p className="text-xs text-red-400 mt-1">{displayNameError}</p>}
+                      <button
+                        onClick={handleSendEmailCode}
+                        disabled={sendingCode || !newEmail}
+                        className="mt-3 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        {sendingCode && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Send Verification Code
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-xs text-gray-500 uppercase tracking-widest block mb-1.5">Verification Code</label>
+                      <p className="text-xs text-gray-400 mb-2">We sent a verification code to {newEmail}</p>
+                      <input
+                        value={emailVerificationCode}
+                        onChange={e => { setEmailVerificationCode(e.target.value); setDisplayNameError(''); }}
+                        placeholder="Enter 6-digit code"
+                        className={`w-full bg-[#1a1d23] border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none transition-colors ${displayNameError ? 'border-red-500/50 focus:border-red-500/50' : 'border-white/10 focus:border-violet-500/50'}`}
+                      />
+                      {displayNameError && <p className="text-xs text-red-400 mt-1">{displayNameError}</p>}
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => { setShowEmailVerification(false); setEmailVerificationCode(''); setDisplayNameError(''); }}
+                          className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-semibold rounded-lg transition-colors border border-white/10"
+                        >
+                          Back
+                        </button>
+                        <button
+                          onClick={handleVerifyEmail}
+                          disabled={verifyingEmail || !emailVerificationCode}
+                          className="flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          {verifyingEmail && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
               {/* ── PRIVACY TAB ── */}
               {activeTab === 'privacy' && (
                 <div className="bg-[#1a1d23] rounded-xl p-4 flex items-center justify-between">
@@ -312,7 +422,7 @@ export default function UserSettingsModal({ onClose }) {
                   </button>
                 </div>
               )}
-            </div>
+              </div>
 
             {/* Footer save */}
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 flex-shrink-0">
