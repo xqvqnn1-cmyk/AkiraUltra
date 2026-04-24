@@ -230,7 +230,7 @@ export default function DMInterface({ targetEmail, targetName, onClose }) {
           {messages.length === 0 ? (
             // Empty State
             <div className="flex flex-col items-center justify-center h-full">
-              <div className="w-20 h-20 rounded-full mb-4 overflow-hidden ring-4 ring-white/5">
+              <div className="ring-4 ring-white/10 rounded-full mb-4 inline-block">
                 <Avatar name={displayName} email={targetEmail} avatarUrl={targetProfile?.avatar_url} size="xl" />
               </div>
               <p className="text-white font-bold text-lg mb-2">{displayName}</p>
