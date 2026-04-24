@@ -95,8 +95,13 @@ function SelfProfileModal({ onClose, onOpenSettings }) {
       <div className="w-[240px] flex-shrink-0 bg-[#0f1115] flex flex-col overflow-hidden border-r border-white/5">
         {/* Banner Container */}
         <div 
-          className="relative h-32 flex-shrink-0 bg-cover bg-center overflow-hidden group cursor-pointer" 
-          style={getBannerStyle(profile)} 
+          className="relative h-32 flex-shrink-0 overflow-hidden group cursor-pointer bg-cover bg-center"
+          style={{
+            backgroundImage: profile?.banner_url ? `url(${profile.banner_url})` : undefined,
+            background: !profile?.banner_url ? getBannerStyle(profile).background : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
           onClick={() => bannerInputRef.current?.click()}
         >
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-10">
@@ -239,16 +244,26 @@ function OtherUserProfileModal({ targetEmail, targetName, onClose, onDM }) {
     >
       {/* LEFT */}
       <div className="w-[240px] flex-shrink-0 bg-[#0f1115] flex flex-col overflow-hidden border-r border-white/5">
-        <div className="h-20 flex-shrink-0" style={getBannerStyle(profile)} />
-        <div className="px-4 flex-1 overflow-y-auto scrollbar-hide">
-          <div className="relative -mt-8 mb-2 w-fit">
-            <div className="ring-4 ring-[#0f1115] rounded-full">
+        <div 
+          className="relative h-32 flex-shrink-0 bg-cover bg-center overflow-hidden"
+          style={{
+            backgroundImage: profile?.banner_url ? `url(${profile.banner_url})` : undefined,
+            background: !profile?.banner_url ? getBannerStyle(profile).background : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        >
+          {/* Avatar - Absolute Positioned Overlap */}
+          <div className="absolute -bottom-8 left-4 z-20">
+            <div className="ring-4 ring-[#0f1115] rounded-full relative">
               <Avatar name={dn} email={targetEmail} avatarUrl={profile?.avatar_url} size="xl" />
+              {profile?.status && (
+                <span className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-[3px] border-[#0f1115] ${STATUS_COLORS[profile.status] || 'bg-gray-600'}`} />
+              )}
             </div>
-            {profile?.status && (
-              <span className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-[3px] border-[#0f1115] ${STATUS_COLORS[profile.status] || 'bg-gray-600'}`} />
-            )}
           </div>
+        </div>
+        <div className="px-4 pt-12 pb-3 flex-1 overflow-y-auto scrollbar-hide">
           <div className="mb-2">
             <h2 className="font-black text-white text-base leading-tight">{dn}</h2>
             <p className="text-gray-500 text-xs font-mono">{tag}</p>
