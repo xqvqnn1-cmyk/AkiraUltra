@@ -92,10 +92,10 @@ function SelfProfileModal({ onClose, onOpenSettings }) {
       onClick={e => e.stopPropagation()}
     >
       {/* LEFT */}
-      <div className="w-[240px] flex-shrink-0 bg-[#0f1115] flex flex-col overflow-hidden border-r border-white/5">
-        {/* Banner Container */}
+      <div className="w-[240px] flex-shrink-0 bg-[#0f1115] flex flex-col border-r border-white/5 overflow-y-auto scrollbar-hide">
+        {/* Banner Container - Height fixed, allows avatar to overflow */}
         <div 
-          className="relative h-32 flex-shrink-0 overflow-hidden group cursor-pointer bg-cover bg-center"
+          className="relative w-full h-32 flex-shrink-0 bg-cover bg-center group cursor-pointer"
           style={{
             backgroundImage: profile?.banner_url ? `url(${profile.banner_url})` : undefined,
             background: !profile?.banner_url ? getBannerStyle(profile).background : undefined,
@@ -108,19 +108,24 @@ function SelfProfileModal({ onClose, onOpenSettings }) {
             <Camera className="w-4 h-4 text-white" />
           </div>
           <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
-          
-          {/* Avatar - Absolute Positioned Overlap */}
-          <div className="absolute -bottom-12 left-4 z-20 group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
-            <div className="ring-4 ring-[#0f1115] rounded-full">
+        </div>
+        
+        {/* Avatar - Absolute positioned to overlap banner, outside overflow */}
+        <div className="relative px-4 -mt-10 mb-2 flex justify-center z-20 pointer-events-none">
+          <div 
+            className="group cursor-pointer pointer-events-auto"
+            onClick={() => setShowAvatarModal(true)}
+          >
+            <div className="ring-4 ring-[#0f1115] rounded-full relative inline-block">
               <Avatar name={dn} email={user.email} avatarUrl={profile?.avatar_url} size="xl" />
-            </div>
-            <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-              {uploadingAvatar ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Camera className="w-4 h-4 text-white" />}
+              <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                {uploadingAvatar ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Camera className="w-4 h-4 text-white" />}
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="px-4 pt-24 pb-3 flex-1 overflow-y-auto scrollbar-hide">
+        <div className="px-4 pb-3 flex-1">
           <div className="mb-2">
             <h2 className="font-black text-white text-base leading-tight">{dn}</h2>
             <p className="text-gray-500 text-xs font-mono">{tag}</p>
@@ -243,9 +248,9 @@ function OtherUserProfileModal({ targetEmail, targetName, onClose, onDM }) {
       onClick={e => e.stopPropagation()}
     >
       {/* LEFT */}
-      <div className="w-[240px] flex-shrink-0 bg-[#0f1115] flex flex-col overflow-hidden border-r border-white/5">
-        {/* Banner Container - Relative Context for Avatar */}
-        <div className="relative h-32 flex-shrink-0 overflow-hidden">
+      <div className="w-[240px] flex-shrink-0 bg-[#0f1115] flex flex-col border-r border-white/5 overflow-y-auto scrollbar-hide">
+        {/* Banner Container - Height fixed, allows avatar to overflow */}
+        <div className="relative w-full h-32 flex-shrink-0 bg-cover bg-center">
           <div 
             className="absolute inset-0 bg-cover bg-center"
             style={{
@@ -255,9 +260,12 @@ function OtherUserProfileModal({ targetEmail, targetName, onClose, onDM }) {
               backgroundPosition: 'center'
             }}
           />
-          {/* Avatar - Scoped Inside Relative Banner Container */}
-          <div className="absolute -bottom-12 left-4 z-20">
-            <div className="ring-4 ring-[#0f1115] rounded-full relative">
+        </div>
+
+        {/* Avatar - Absolute positioned to overlap banner, outside overflow */}
+        <div className="relative px-4 -mt-10 mb-2 flex justify-center z-20 pointer-events-none">
+          <div className="pointer-events-auto">
+            <div className="ring-4 ring-[#0f1115] rounded-full relative inline-block">
               <Avatar name={dn} email={targetEmail} avatarUrl={profile?.avatar_url} size="xl" />
               {profile?.status && (
                 <span className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-[3px] border-[#0f1115] ${STATUS_COLORS[profile.status] || 'bg-gray-600'}`} />
@@ -267,7 +275,7 @@ function OtherUserProfileModal({ targetEmail, targetName, onClose, onDM }) {
         </div>
 
         {/* Content Scroll Area */}
-        <div className="px-4 pt-24 pb-3 flex-1 overflow-y-auto scrollbar-hide">
+        <div className="px-4 pb-3 flex-1">
           <div className="mb-2">
             <h2 className="font-black text-white text-base leading-tight">{dn}</h2>
             <p className="text-gray-500 text-xs font-mono">{tag}</p>
